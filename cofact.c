@@ -36,7 +36,7 @@
 #define tv_msecs(tv) (tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0)
 
 const char *prog_name  = "cofact";
-const char *prog_vers  = "0.3";
+const char *prog_vers  = "0.4";
 const char *build_date = __DATE__;
 const char *build_time = __TIME__;
 
@@ -124,6 +124,7 @@ int main (int argc, char **argv) {
     FILE *fp_proof;			// Proof file
     int version, hashlen, power;	// Values from the proof file
     char proof_desc_s[2048];		// The proof description string: (Fn)/factor_1/factor_2...
+    char newline[2];			// Required to avoid the description fscanf from eating part of the residue
     int n_proof;			// N of the Fermat number in the proof file
     unsigned char *A_proof_raw;		// Buffer for the proof file raw residue
     mpz_t A_proof;			// The proof file residue
@@ -246,7 +247,7 @@ int main (int argc, char **argv) {
 	    printf ("Error: Cannot read power from proof file header\n");
 	    exit(1);
         }
-        if (fscanf (fp_proof, "NUMBER=%2047[^\n]\n", proof_desc_s) != 1) {
+        if (fscanf (fp_proof, "NUMBER=%2047[^\n]%1[\n]", proof_desc_s, newline) != 2) {
 	    printf ("Error: Cannot read proof description string from proof file header\n");
 	    exit(1);
         }
@@ -271,7 +272,7 @@ int main (int argc, char **argv) {
         }
 /*
 	printf ("Proof file residue: \n");
-	for (i=0; i<len; i++) {
+	for (i=0; i<16; i++) {
 	    printf ("%02x ", A_proof_raw[i]);
 	}
 	printf ("\n");
