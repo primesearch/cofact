@@ -36,7 +36,7 @@
 #define tv_msecs(tv) (tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0)
 
 const char *prog_name  = "cofact";
-const char *prog_vers  = "0.4";
+const char *prog_vers  = "0.5";
 const char *build_date = __DATE__;
 const char *build_time = __TIME__;
 
@@ -189,8 +189,8 @@ int main (int argc, char **argv) {
 	    strncpy (proof_file_name, argv[argi], NAME_LEN-1);
 	} else
 	if (strcmp(argv[argi], "-h") == 0) {
-	    usage();
-	    exit(0);
+	    usage ();
+	    exit (0);
 	} else
 	if (strcmp(argv[argi], "-p") == 0) {
 	    argi++;
@@ -210,8 +210,8 @@ int main (int argc, char **argv) {
 	} else
 	if (strncmp(argv[argi], "-", 1) == 0) {
 	    printf ("Error: unknown command line flag: %s\n", argv[argi]);
-	    usage();
-	    exit(1);
+	    usage ();
+	    exit (1);
 	} else {
 	    break;
 	}
@@ -220,7 +220,7 @@ int main (int argc, char **argv) {
     // If checking or using a proof file residue is enabled, read the proof file
     if (check_proof_res && use_proof_res) {
     	printf ("Error: Can only specify one of -cpr and -upr\n");
-	exit(1);
+	exit (1);
     }
 
     if (check_proof_res || use_proof_res) {
@@ -228,28 +228,28 @@ int main (int argc, char **argv) {
 
 	if ((fp_proof = fopen (proof_file_name, "rb")) == NULL) {			// The "b" is not needed according to fopen man page
 	    printf ("Error: Cannot open proof file: %s\n", proof_file_name);
-	    exit(1);
+	    exit (1);
 	}
 
 	if (fscanf (fp_proof, "PRP PROOF\n") != 0) {
 	    printf ("Error: Cannot read PRP PROOF from proof file header\n");
-	    exit(1);
+	    exit (1);
 	}
 	if (fscanf (fp_proof, "VERSION=%d\n", &version) != 1 || (version != 1 && version != 2)) {
 	    printf ("Error: Cannot read VERSION number from proof file header\n");
-	    exit(1);
+	    exit (1);
 	}
 	if (fscanf (fp_proof, "HASHSIZE=%d\n", &hashlen) != 1 || hashlen < 32 || hashlen > 64) {
 	    printf ("Error: Cannot read hash size from proof file header\n");
-	    exit(1);
+	    exit (1);
         }
         if (fscanf (fp_proof, "POWER=%d\n", &power) != 1 || power <= 0 || power >= 16) {
 	    printf ("Error: Cannot read power from proof file header\n");
-	    exit(1);
+	    exit (1);
         }
         if (fscanf (fp_proof, "NUMBER=%2047[^\n]%1[\n]", proof_desc_s, newline) != 2) {
 	    printf ("Error: Cannot read proof description string from proof file header\n");
-	    exit(1);
+	    exit (1);
         }
 
 	printf ("Proof file description: %s\n", proof_desc_s);
@@ -257,18 +257,18 @@ int main (int argc, char **argv) {
 	if (sscanf (proof_desc_s, "F%d", &n_proof) != 1) {
 	    if (sscanf (proof_desc_s, "(F%d)", &n_proof) != 1) {
 		printf ("Error: Cannot read proof description string from proof file header\n");
-		exit(1);
+		exit (1);
 	    }
 	}
 	    
 	len = 1 << (n_proof - 3);			// Need a buffer of 2^n / 8 bytes to store the raw A residue
 	if ((A_proof_raw = calloc (len+1, sizeof (unsigned char))) == NULL) {
 	    printf ("Error: Unable to allocate buffer for proof file residue\n");
-	    exit(1);
+	    exit (1);
         }
 	if ((rtn = fread (A_proof_raw, 1, len, fp_proof)) != len) {
 	    printf ("Error: Cannot read residue from proof file. Returned %d\n", rtn);
-	    exit(1);
+	    exit (1);
         }
 /*
 	printf ("Proof file residue: \n");
@@ -289,28 +289,35 @@ int main (int argc, char **argv) {
     if (argi < argc) {
 	if (sscanf (argv[argi], "%d", &n) != 1) {
 	    printf ("Error: unable to parse Fermat number: %s\n", argv[argi]);
-	    exit(1);
+	    exit (1);
 	}
 	argi++;
     } else {
     	printf ("Error: must specify the Fermat number\n");
-    	printf ("Usage: cofact n factor1 factor2 ...\n");
-	exit(1);
+	usage ();
+	exit (1);
     }
 
-    // Parse the known factors
-    n_fact = argc - argi;
-    for (i = 0; i < n_fact; i++) {
-    	if (mpz_set_str(fact[i], argv[argi++], 10) != 0) {
-	    printf ("Error: cannot parse factor: %s\n", argv[2+i]);
-	    exit(1);
-	}
-    }
-
+    // Calculate the Fermat number
     exp = 1 << n;			// Exponent of 2 = 2^n
     mpz_set_ui (Fm1, 1LL);		// Fm1 = 2^2^n
     mpz_mul_2exp (Fm1, Fm1, exp);	// "
     mpz_add_ui (F, Fm1, 1LL);		// F = Fm1 + 1
+
+    // Parse the known factors, and check that they divide the Fermat number
+    n_fact = argc - argi;
+    for (i = 0; i < n_fact; i++) {
+    	if (mpz_set_str(fact[i], argv[argi], 10) != 0) {
+	    printf ("Error: cannot parse factor: %s\n", argv[argi]);
+	    exit (1);
+	}
+	mpz_cdiv_r (tmp, F, fact[i]);		// tmp = F mod fact[i]
+	if (mpz_cmp_ui (tmp, 0LL) != 0) {
+	    printf ("Error: supplied factor does not divide F%d: %s\n", n, argv[argi]);
+	    exit (1);
+	}
+	argi++;
+    }
 
     // If "use proof residue" enabled, skip the A calc steps; othwise perform them
     if (use_proof_res) {
@@ -335,7 +342,7 @@ int main (int argc, char **argv) {
 								// Note that K is double, so only values <= 53 bits can be represented. GWNUM checks for this.
 	if (gwerr) {
 	    printf ("gwsetup error = %d\n", gwerr);
-	    exit(1);
+	    exit (1);
 	}
 	gwsetnormroutine (&gwdata, 0, 1, 0);			// Set flag to enable round-off error checking
 								// This call must be AFTER gwsetup
@@ -350,7 +357,7 @@ int main (int argc, char **argv) {
 	r_gw = gwalloc (&gwdata);				// Allocate a GW number for the residue
 	if (r_gw == NULL) {
 	    printf ("gwalloc for r_gw failed\n");
-	    exit(1);
+	    exit (1);
 	}
 
 	binary64togw (&gwdata, &a, 1, r_gw);			// Initialize r_gw = a
@@ -401,7 +408,7 @@ int main (int argc, char **argv) {
 	gwerr =  gw_test_for_error (&gwdata);
 	if (gwerr) {
 	    printf ("Error: gw_test_for_error = %d\n", gwerr);
-	    exit(1);
+	    exit (1);
 	}
 
 	// Convert Pepin residue r_gw to r_bin to R
@@ -435,7 +442,7 @@ int main (int argc, char **argv) {
 		printf ("Calculated A residue matches proof file residue\n\n");
 	    } else {
 		printf ("Error: Calculated A residue does not matches proof file residue\n\n");
-		exit(1);
+		exit (1);
 	    }
 	}
 
