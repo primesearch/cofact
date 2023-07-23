@@ -1,8 +1,9 @@
 /*
- * Test a small Fermat number for primality. If known factors are given then test the cofactor for 
- * probable primality.
+ * Test a small Fermat number for primality. (Small means, up to 400 million digits in size!)
  *
- * Values: F is the Fermat number (2^2^n + 1), P is the product of known factors, C is the remaining
+ * If known factors are given, then the cofactor is tested for probable primality.
+ *
+ * Values: F is the Fermat number (2^2^m + 1), P is the product of known factors, C is the remaining
  * cofactor.
  *
  * Prints Res64 (hexadecimal) and Selfridge-Hurwitz residues (decimal, optionally octal) on each 
@@ -15,7 +16,7 @@
  *      A = R^2 mod F = 3^(F-1) mod F       Prime95/mprime type 5 residue
  *      B = 2^(P-1) mod F
  *      (A - B) mod C                       Cofactor C is prime iff (A - B) mod C == 0
- *      GCD (A-B, C)                        Cofactor C is not a prime power if GCD (A-B, C) = 1
+ *      GCD (A - B, C)                      Cofactor C is not a prime power if GCD (A - B, C) = 1
  *
  * cofact can be run in one of three modes:
  *   mode 1 (default):  Test a Fermat number for primality using the Pepin test.
@@ -41,7 +42,7 @@
 
 #include "gwnum.h"
 
-#define CMD_LEN 1024        // Length of the command line string
+#define CMD_LEN 2048        // Length of the command line string supports factors of size up to F12 cofactor
 #define NAME_LEN 64         // Length of the proof filename
 #define TIME_STRING_LEN 64
 #define N_FACT 10           // Number of Fermat factors supported
@@ -50,7 +51,7 @@
 #define tv_msecs(tv) (tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0)
 
 const char *prog_name  = "cofact";
-const char *prog_vers  = "0.7c";
+const char *prog_vers  = "0.72c";
 const char *build_date = __DATE__;
 const char *build_time = __TIME__;
 
@@ -58,47 +59,80 @@ mpz_t mask64;       // 64 bit mask for print_residues
 mpz_t r64;          // 64 LSBs of a residue
 
 // Print the label followed by Res64 (hex), Res 2^36 (decimal), Res 2^36-1 (decimal), Res 2^35-1 (decimal)
-void print_residues (mpz_t n, int octal, char *name) {
+void print_residues (mpz_t m, int octal, int hex, char *name) {
     unsigned long res64, res36, res36m1, res35m1;
 
-    mpz_and (r64, n, mask64);
+    mpz_and (r64, m, mask64);
     res64 = mpz_get_ui (r64);
-    res36   = mpz_tdiv_ui (n, 0x1000000000L);
-    res36m1 = mpz_tdiv_ui (n,  0xFFFFFFFFFL);
-    res35m1 = mpz_tdiv_ui (n,  0x7FFFFFFFFL);
-    printf ("%s Residue mod 2^64 2^36 2^36-1 2^35-1: 0x%016lX %ld %ld %ld\n", name, res64, res36, res36m1, res35m1);
-    if (octal) {
-        printf ("%s Residue mod 2^64 2^36 2^36-1 2^35-1: 0x%016lX %lo %lo %lo (octal)\n", name, res64, res36, res36m1, res35m1);
+    res36   = mpz_tdiv_ui (m, 0x1000000000L);
+    res36m1 = mpz_tdiv_ui (m,  0xFFFFFFFFFL);
+    res35m1 = mpz_tdiv_ui (m,  0x7FFFFFFFFL);
+    if (strcmp(name, "Pepin") == 0) {
+        wchar_t *pe;
+        pe = (wchar_t *) malloc(sizeof(wchar_t) * 2);
+        pe[0] = 0x00e9;
+        pe[1] = 0;
+        setlocale(P_ALL, "");
+        printf ("P%lspin residue mod 2^64 2^36 2^36-1 2^35-1: 0x%016lX %ld %ld %ld\n", pe, res64, res36, res36m1, res35m1);
+        if (octal) {
+            printf ("P%lspin residue mod 2^64 2^36 2^36-1 2^35-1: 0x%016lX %lo %lo %lo (octal)\n", pe, res64, res36, res36m1, res35m1);
+        }
+        if (hex) {
+            printf ("P%lspin residue mod 2^64 2^36-1: 0x%016lX 0x%09lX\n", pe, res64, res36m1);
+            printf ("              mod 2^36 2^35-1:        0x%09lX 0x%09lX (hex)\n", res36, res35m1);
+        }
+    } else {
+        printf ("%s residue mod 2^64 2^36 2^36-1 2^35-1: 0x%016lX %ld %ld %ld\n", name, res64, res36, res36m1, res35m1);
+        if (octal) {
+            printf ("%s residue mod 2^64 2^36 2^36-1 2^35-1: 0x%016lX %lo %lo %lo (octal)\n", name, res64, res36, res36m1, res35m1);
+        }
+        if (hex) {
+            printf ("%s residue mod 2^64 2^36-1: 0x%016lX 0x%09lX\n", name, res64, res36m1);
+            printf ("%s residue mod 2^36 2^35-1:        0x%09lX 0x%09lX (hex)\n", name, res36, res35m1);
+        }
     }
 }
 
-// Print an mpz_t number with a label. Used for debug only.
-void print_mpz (mpz_t n, int base, char *name) {
+// Print an mpz_t number with a label. Used for debug / verbose only.
+void print_mpz (mpz_t m, int base, char *name) {
 
     printf ("%s = ", name);
-    mpz_out_str (stdout, base, n);
+    mpz_out_str (stdout, base, m);
     printf ("\n");
 }
-
 void usage (int verbose) {
-    printf ("Usage: cofact [-cpr file] [-cdhikmouv [file]] [-p iter] [-sep] [-t threads] [-upr file] [-kf] Fermat_exponent factor_1 factor_2 ...\n");
-    printf ("    -cpr file    Read the Suyama A residue from the mprime proof file and compare it to the A residue calculated by cofact (mode 2)\n");
-    printf ("    -c file      Same as -cpr, but -c can be combined with other flags\n");
-    printf ("    -d           Print debug information\n");
-    printf ("    -h           Print this help and exit\n");
-    printf ("    -i           Special flag for printing interim Pepin residues at certain values for F8, F17, and F22\n");
-    printf ("    -k           Same as -kf below, but -k can be combined with other flags\n");
-    printf ("    -m           Special flag for reducing Suyama A and B values modulo C\n");
-    printf ("    -o           Additionally print Selfridge-Hurwitz residues in octal (default is decimal only)\n");
-    printf ("    -u file      Same as -upr, but -u can be combined with other flags\n");
-    printf ("    -v           Print more verbose information (also, you may use -hv to get more verbose help)\n");
-    printf ("    -p iter      Print progress every iter iterations, instead of the default of every 10%% of total iterations for longer runs)\n");
-    printf ("    -sep         Print a separator at the end of the run to better see multiple runs' output in a single output file\n");
-    printf ("    -t threads   Specifies the number of threads to use in the gwnum library. Defaults to 1.\n");
-    printf ("    -upr file    Read the Suyama A residue from the mprime proof file and use it to complete the Suyama test (mode 3)\n\n");
-    printf ("    -kf          Use currently known prime factors (as of 2020) for the Fermat number being tested, if available.\n");
-    printf ("                 Only Fermat numbers F12 to F19, F21 to F23, and F25 to F30 have known factors stored.\n");
-    printf ("                 Do NOT use -kf if you believe you have a new factor that you wish to test in addition to known factors.\n");
+    wchar_t *pe;
+    pe = (wchar_t *) malloc(sizeof(wchar_t) * 2);
+    pe[0] = 0x00e9;
+    pe[1] = 0;
+    setlocale(P_ALL, "");
+
+    printf ("Usage: cofact [-cpr file] [-cdhikmouvx [file]] [-p iter] [-sep] [-t threads]\n");
+    printf ("              [-upr file] [-kf] Fermat_exponent factor_1 factor_2 ...\n");
+    printf ("    -cpr file     Read the Suyama A residue from the mprime proof file and compare it with the \n");
+    printf ("                  the A residue calculated by cofact (mode 2)\n");
+    printf ("    -c file       Same as -cpr, but -c can be combined with other flags\n");
+    printf ("    -d            Print debug information\n");
+    printf ("    -h            Print this help and exit\n");
+    printf ("    -i            Special flag for printing certain interim P%lspin residues (F8, F17, F22)\n", pe);
+    printf ("    -k            Same as -kf below, but -k can be combined with other flags\n");
+    printf ("    -m            Special flag for reducing Suyama A and B values modulo C\n");
+    printf ("    -o            Additionally print Selfridge-Hurwitz residues in octal (default is decimal only)\n");
+    printf ("    -u file       Same as -upr, but -u can be combined with other flags\n");
+    printf ("    -v            Print more verbose information (also, you may use -hv to get more verbose help)\n");
+    printf ("    -x            Also print Selfridge-Hurwitz residues in hexadecimal (default is decimal only)\n");
+    printf ("    -p iter       Print progress every iter iterations, instead of the default of every 10%%\n");
+    printf ("    -sep          Print a separator line at the end of the run to better see multiple runs' output\n");
+    printf ("    -t threads    Specifies the number of threads to use in the gwnum library. Defaults to 1.\n");
+    printf ("    -upr file     Bypass the P%lspin test, read the Suyama A residue from the mprime proof file and \n",pe);
+    printf ("                  use it to complete the Suyama test (mode 3)\n\n");
+    printf ("    -kf           Use currently known prime factors (as of 2020) for the Fermat number being tested.\n");
+    printf ("                  Only Fermat numbers F12 - F19, F21 - F23, and F25 - F30 have known factors stored.\n");
+    printf ("                  Do NOT use -k or -kf if you believe you have a new factor to test.\n\n");
+    printf ("    Fermat_exponent   Should be a whole number from 0 to 30\n");
+    printf ("    factor(s)         Should be a whole number that divides a Fermat number\n\n");
+    printf ("Examples:  cofact 5 641\n");
+    printf ("           cofact -k 12\n");
     printf ("\n");
     if (verbose) {
         printf ("----------------------------------------------------------------------------------------------------\n");
@@ -120,21 +154,21 @@ void usage (int verbose) {
         printf ("\n");
         printf ("Option -o for printing octal representations of Selfridge-Hurwitz residues;\n");
         printf ("\n");
-        printf ("Super-verbose flag -sv for outputting full residues of Pepin tests and from \n");
+        printf ("Super-verbose flag -sv for outputting full residues of P%lspin tests and from \n", pe);
         printf ("saved proofs, full values of cofactors, outputting the binary representations \n");
         printf ("of cofactors (yikes), and other what-not.\n");
         printf ("\n");
         printf ("Use with care! The super-verbose flag -sv also includes the normal -v level of \n");
-        printf ("verbosity, and switches on -d (debug), -i, -m, and -o flags as well. It is not a \n");
+        printf ("verbosity, and switches on -d (debug), -i, -m, -o, and -x flags as well. It is not a \n");
         printf ("good idea to run -sv on Fermat numbers greater than F10 unless you need or want\n");
         printf ("full listings of cofact's doings.\n");
         printf ("\n");
-        printf ("Any of the following flags can be run together, i.e. as -cdhikmouv:\n");
-        printf ("    -c or -u,   to either check or use a proof file;\n");
-        printf ("    -i, -m, -o, for various modifications to the Pepin or Suyama tests;\n");
-        printf ("    -d, -v,     for debug or verbose modes;\n");
-        printf ("    -h or -hv,  for help or verbose help;\n");
-        printf ("    -k,         to use the known factors for a Fermat number.\n");
+        printf ("Any of the following flags can be run together, i.e. as -cdhikmouvx:\n");
+        printf ("    -c or -u file     to either check or use a proof file;\n");
+        printf ("    -i, -m, -o, -x    for various modifications to the P%lspin or Suyama tests;\n", pe);
+        printf ("    -d, -v,           for debug or verbose modes;\n");
+        printf ("    -h or -hv,        for help or verbose help;\n");
+        printf ("    -k,               to use the known factors for a Fermat number.\n");
         printf ("\n");
         printf ("Conversely, the -cpr, -p, -sep, -sv, -t, and -upr flags must be entered separately.\n");
         printf ("\n");
@@ -145,7 +179,7 @@ void usage (int verbose) {
         printf ("    F16, F17, F18, F27, F30: 2 known factors\n");
         printf ("    F14, F21, F22, F23, F26, F28, F29: 1 known factor\n");
         printf ("\n");
-        printf ("I cannot stress enough - if you are testing a newly discovered factor, \n");
+        printf ("I cannot stress enough - if you are testing for a newly discovered factor, \n");
         printf ("do NOT use the -k or -kf flags!\n");
         printf ("\n");
         printf ("Other notes:\n");
@@ -162,15 +196,15 @@ void usage (int verbose) {
 }
 
 int main (int argc, char **argv) {
-    int n;                          // N of the Fermat number
+    int m;                          // M of the Fermat number F_m
     int n_fact;                     // The number of factors entered
     unsigned long k;                // Always 1 for a Fermat number
-    unsigned long exp;              // The fermat exponent: 2^n
+    unsigned long exp;              // The fermat exponent: 2^m
     unsigned long base;             // The base to test: always 3
     unsigned long x;                // Number of Pepin test square/mod operations
-    unsigned long m;                // Iteration counter for square/mod loop
-    unsigned long m_progress;       // The next m at which to print progress
-    unsigned long m_progress_inc;   // The m increment at which to report progress
+    unsigned long j;                // Iteration counter for square/mod loop
+    unsigned long j_progress;       // The next m at which to print progress
+    unsigned long j_progress_inc;   // The m increment at which to report progress
     int digits;                     // Number of digits int the cofactor
     char *cof_s;                    // The cofactor as a string
     int threads;                    // Number of threads (cores) to use in gwnum library
@@ -179,6 +213,7 @@ int main (int argc, char **argv) {
     int interim;                    // Flag to print interim residues
     int modc;                       // Flag to evaluate and print A mod C and B mod C
     int octal;                      // Flag to print S-H residues in octal
+    int hex;                        // Flag to print S-H residues in hexadecimal
     int debug;                      // Flag to enable printing debug information
     int sep;                        // Flag to print a separator line at the end of the run
     int check_proof_res;            // Flag to enable checking the mprime proof file A residue
@@ -188,9 +223,15 @@ int main (int argc, char **argv) {
     long ftell_rtn_0, ftell_rtn_1;  // Return value from ftell before and after fseek call
     int res_len;                    // The size of the proof file residue, in bytes
     char cmdline[CMD_LEN];          // The reconstructed command line
-    char line[1024];                // Temp string
+    char line[2048];                // Temp string
     int argi, rtn, i, z;
     char *flags;                    // Pointer for multiple flags in one argument; z if file location to follow
+
+    wchar_t *pe;                    // We want to have an e with an acute accent. Because reasons
+    pe = (wchar_t *) malloc(sizeof(wchar_t) * 2);
+    pe[0] = 0x00e9;
+    pe[1] = 0;
+    setlocale(P_ALL, "");
 
     // Various time variables
     static struct timeval tv_start, tv_stop, tv_progress_start, tv_progress_stop;
@@ -283,14 +324,14 @@ int main (int argc, char **argv) {
     super_verbose = 0;      // Default to no super verbose
     interim = 0;            // Default to print no interim residues
     modc = 0;               // Default to not evaluate A mod C and B mod C
-    octal = 0;              // Default to decimal representation of S-H residues
+    octal = 0; hex = 0;     // Default to decimal representation of S-H residues
     debug = 0;              // Default to no debug
     sep = 0;                // Default to no separator line
     check_proof_res = 0;    // Default to not checking
     use_proof_res = 0;      // Default to calculating the A residue
     known_factors = 0;      // Default to only performing a Pepin test if no factors have been declared
-    m_progress_inc = 0;     // Default of 0 will be changed to 10% of the run
-    n = 0;                  // Invalid value, to make sure n is later set
+    j_progress_inc = 0;     // Default of 0 will be changed to 10% of the run
+    m = 0;                  // Invalid value, to make sure m is later set
     z = 0;                  // Flag for combined menu options requiring a file parameter (-c and -u)
 
     // Parse command line arguments starting with "-" args
@@ -306,13 +347,14 @@ int main (int argc, char **argv) {
             interim = 1;
             modc = 1;
             octal = 1;
+            hex = 1;
             sep = 1;
             verbose = 1;
             super_verbose = 1;
         } else
         if ((strcmp(argv[argi], "-p") == 0) || (strcmp(argv[argi], "-P") == 0)) {
             argi++;
-            m_progress_inc = atol(argv[argi]);
+            j_progress_inc = atol(argv[argi]);
         } else
         if ((strcmp(argv[argi], "-sep") || (strcmp(argv[argi], "-SEP") == 0)) == 0) {
             sep = 1;
@@ -329,9 +371,9 @@ int main (int argc, char **argv) {
         if ((strcmp(argv[argi], "-kf") == 0) || (strcmp(argv[argi], "-KF") == 0)) {
             known_factors = 1;
         } else
-        if (strncmp(argv[argi], "-", 1) == 0) {     // Combined -cdvhikmou flags, processed in that order
+        if (strncmp(argv[argi], "-", 1) == 0) {     // Combined -cdvhikmoux flags, processed in that order
             z = 0;
-            flags = strpbrk(argv[argi], "cCdDvVhHiIkKmMoOuU");      // We are somewhat tolerant of upper case
+            flags = strpbrk(argv[argi], "cCdDvVhHiIkKmMoOuUxX");      // We are somewhat tolerant of upper case
             if (flags != NULL) {
                 flags = strpbrk(argv[argi], "cC");   // increment z to ensure we get a file argument
                 if (flags != NULL) {
@@ -372,7 +414,11 @@ int main (int argc, char **argv) {
                     use_proof_res = 1;
                     z++;
                 }
-                flags = strpbrk(argv[argi], "aAeEgGjJlLnNpPqQrRsStTwWxXyYzZ1234567890"); // check if there were other letters in combined flag
+                flags = strpbrk(argv[argi], "xX");
+                if (flags != NULL) {
+                    hex = 1;
+                }
+                flags = strpbrk(argv[argi], "aAeEgGjJlLnNpPqQrRsStTwWyYzZ1234567890"); // check if there were other letters in combined flag
                 if (flags != NULL) {
                     printf ("Warning: unknown option in command line flag: %s\n", argv[argi]);
                     usage (0);
@@ -393,42 +439,42 @@ int main (int argc, char **argv) {
         }
     }
 
-    // Parse n of the Fermat number
+    // Parse m of the Fermat number
     if (argi < argc) {
-        if (sscanf (argv[argi], "%d", &n) != 1) {
+        if (sscanf (argv[argi], "%d", &m) != 1) {
             printf ("Error: unable to parse Fermat number: %s\n", argv[argi]);
             usage (0);
             exit (1);
         }
         argi++;
     } else {
-        printf ("Error: must specify the Fermat number\n");
+        printf ("Error: must specify a Fermat number between 1 and 30\n");
         usage (0);
         exit (1);
     }
 
     // Make sure the Fermat number is in the range supported by the gwnum library
-    if (n < 0 || n > 30) {
-        printf ("Error: cofact only supports F0 through F30. F%d was specified\n", n);
+    if (m < 0 || m > 30) {
+        printf ("Error: cofact only supports F0 through F30. F%d was specified\n", m);
         exit (1);
     }
 
     // If F0 selected, print a message then exit
-    if (n == 0) {
-        printf ("The Pepin test cannot be run on Fermat number F0 = 3\n");
+    if (m == 0) {
+        printf ("The P%lspin test cannot be run on Fermat number F0 = 3\n",pe);
         printf ("F0 is prime!\n\n");
         goto fast_exit;
     }
 
     // Calculate the Fermat number F and F-1
-    exp = 1 << n;                   // Exponent of 2 = 2^n
-    mpz_set_ui (Fm1, 1L);           // Fm1 = 2^2^n
+    exp = 1 << m;                   // Exponent of 2 = 2^m
+    mpz_set_ui (Fm1, 1L);           // Fm1 = 2^2^m
     mpz_mul_2exp (Fm1, Fm1, exp);   // "
     mpz_add_ui (F, Fm1, 1L);        // F = Fm1 + 1
 
     // If known factors flag is set, we initialise with the expected factors for a particular Fermat number and bypass user submitted factors
-    if (known_factors && n > 11 && n < 33 && n != 20 && n != 24) {
-        switch (n) {
+    if (known_factors && m > 11 && m < 33 && m != 20 && m != 24) {
+        switch (m) {
             case 12:
                 n_fact = 6; mpz_set_str(fact[0],"114689",10); mpz_set_str(fact[1],"26017793",10); mpz_set_str(fact[2],"63766529",10); mpz_set_str(fact[3],"190274191361",10); mpz_set_str(fact[4],"1256132134125569",10); mpz_set_str(fact[5],"568630647535356955169033410940867804839360742060818433",10);
                 break;
@@ -489,7 +535,7 @@ int main (int argc, char **argv) {
                 break;
 */
         }
-        printf ("Using the following known factors for F%d: ", n);
+        printf ("Using the following known factors for F%d: ", m);
         for (i = 0; i < n_fact; i++) {
             mpz_out_str (stdout, 10, fact[i]);
             printf (" ");
@@ -505,7 +551,7 @@ int main (int argc, char **argv) {
             }
             mpz_tdiv_r (tmp, F, fact[i]);       // tmp = F mod fact[i]
             if (mpz_cmp_ui (tmp, 0L) != 0) {
-                printf ("Error: supplied factor does not divide F%d: %s\n", n, argv[argi]);
+                printf ("Error: supplied factor does not divide F%d: %s\n", m, argv[argi]);
                 exit (1);
             }
             argi++;
@@ -623,11 +669,11 @@ int main (int argc, char **argv) {
     // If "use proof residue" enabled, skip the A calc steps; othwise perform them
     if (use_proof_res) {
         printf ("Using A residue from proof file instead of calculating it\n");
-        printf ("Skipping the Pepin test\n\n");
+        printf ("Skipping the P%lspin test\n\n", pe);
         mpz_set (A, A_proof);
     } else {
         // If not using proof file residue, do the full Pepin and Suyama calculations
-        printf ("Testing F%d for primality using the Pepin test\n", n);
+        printf ("Testing F%d for primality using the P%lspin test\n", m, pe);
         printf ("Using %d threads in gwnum library\n", threads);
         fflush (stdout);
 
@@ -648,7 +694,7 @@ int main (int argc, char **argv) {
         if (gwerr) {
             if (gwerr == 1002) {
                 printf ("gwsetup error = 1002 (Number too large for the FFTs)\n");
-                if (n == 30) printf ("Note that gwnum requires an AVX512 computer to support F30\n");
+                if (m == 30) printf ("Note that gwnum requires an AVX512 computer to support F30\n");
             } else {
                 printf ("gwsetup error = %d\n", gwerr);
             }
@@ -688,14 +734,14 @@ int main (int argc, char **argv) {
         x = exp - 1;                                            // Number of Pepin test square/mod steps: x = 2^n - 1
 
         // If the progress print increment has not been set and the test is likely to take more than a second (at least 100000 steps), set it by default to 10% of the run
-        if (m_progress_inc == 0 && x > 100000) m_progress_inc = x / 10;                // Default to 10% of the run
+        if (j_progress_inc == 0 && x > 100000) j_progress_inc = x / 10;                // Default to 10% of the run
 
-        m_progress = m_progress_inc;
+        j_progress = j_progress_inc;
         (void) gettimeofday(&tv_progress_start, (struct timezone *) 0);
 
         // Almost all the runtime is in the following loop
-        for (m = 1; m <= x; m++) {
-            if (m < 24) {                                               // FIXME Good for n <= 2^24? Could this be set more intelligently?
+        for (j = 1; j <= x; j++) {
+            if (j < 24) {                                               // FIXME Good for n <= 2^24? Could this be set more intelligently?
                 gwsquare2_carefully (&gwdata, r_gw, r_gw);              // r_gw = (r_gw ^ 2) mod F
             } else {
 //              gwsquare2 (&gwdata, r_gw, r_gw);                        // r_gw = (r_gw ^ 2) mod F      Use this line when using gwnum from mprime v29.8
@@ -705,44 +751,46 @@ int main (int argc, char **argv) {
 
             maxerr = gw_get_maxerr (&gwdata);
             if (maxerr >= 0.45) {
-                printf ("Roundoff warning: k = %ld, n = %d, m = %ld, maxerr = %22.20lf\n", k, n, m, maxerr);
+                printf ("Roundoff warning: k = %ld, m = %d, iteration = %ld, maxerr = %22.20lf\n", k, m, j, maxerr);
                 gw_clear_maxerr (&gwdata);
             }
 
-            if (m_progress_inc > 0 && m >= m_progress) {
+            if (j_progress_inc > 0 && j >= j_progress) {
                 (void) gettimeofday(&tv_progress_stop, (struct timezone *) 0);
                 wall_time = tv_secs(tv_progress_stop) - tv_secs(tv_start);
                 wall_hours = wall_time / 3600;
                 wall_mins = (wall_time - (wall_hours * 3600)) / 60;
                 wall_secs = (wall_time - (wall_hours * 3600) - (wall_mins * 60));
-                ms_per_iter = (tv_msecs(tv_progress_stop) - tv_msecs(tv_progress_start)) / m_progress_inc;
-                printf ("Iteration: %9ld / %9ld (%5.1f%%), ms/iter: %7.3lf, Wall time = %d:%02d:%02d (HH:MM:SS)\n", m, x, 100.0 * m / x, ms_per_iter, wall_hours, wall_mins, wall_secs);
+                ms_per_iter = (tv_msecs(tv_progress_stop) - tv_msecs(tv_progress_start)) / j_progress_inc;
+                printf ("Iteration: %9ld / %9ld (%5.1f%%), ms/iter: %7.3lf, Wall time = %d:%02d:%02d (HH:MM:SS)\n", j, x, 100.0 * j / x, ms_per_iter, wall_hours, wall_mins, wall_secs);
                 fflush (stdout);
-                m_progress += m_progress_inc;
+                j_progress += j_progress_inc;
                 tv_progress_start.tv_sec  = tv_progress_stop.tv_sec;
                 tv_progress_start.tv_usec = tv_progress_stop.tv_usec;
             }
             if (interim) {
-                if ((n == 17 && m == 20) || (n == 8 && m == 246)) {
+                if ((m == 17 && j == 20) || (m == 8 && j == 246)) {
                     len = gwtobinary64 (&gwdata, r_gw, r_bin, r_bin_buf_len);
                     mpz_import (R, len, -1, 8, 0, 0, r_bin);
-                    printf ("Iteration: %9ld\n", m);
+                    printf ("Iteration: %9ld\n", j);
                     digits = mpz_sizeinbase (R, 10);
                     cof_s = malloc (digits + 2);
                     mpz_get_str (cof_s, 10, R);
                     digits = strlen (cof_s);
-                    if (super_verbose || digits < 600) {
-                        print_mpz (R, 10, "R");
-                        printf ("\n");
+                    if (super_verbose || m < 12) {
+                        printf ("3^2^%lu = ", j);
+                        mpz_out_str (stdout, 10, R);
+                        printf (" modulo F%d\n",m);
                     }
-                    print_residues (R, octal, "Interim Pepin");
+                    print_residues (R, octal, hex, "Interim");
+                    printf ("\n");
                     fflush (stdout);
                 }
-                if (n == 22 && (m == 126000 || m == 354000 || m == 486000 || m == 790000 || m == 1078000 || m == 1430000 || m == 1854000 || m == 2390000 || m == 2718000 || m == 3046000 || m == 3542000 || m == 3838000 || m == 4182000)) {
-                    printf ("Iteration: %9ld /   4194303 ", m);
+                if (m == 22 && (j == 126000 || j == 354000 || j == 486000 || j == 790000 || j == 1078000 || j == 1430000 || j == 1854000 || j == 2390000 || j == 2718000 || j == 3046000 || j == 3542000 || j == 3838000 || j == 4182000)) {
+                    printf ("Iteration: %9ld /   4194303 ", j);
                     len = gwtobinary64 (&gwdata, r_gw, r_bin, r_bin_buf_len);
                     mpz_import (R, len, -1, 8, 0, 0, r_bin);
-                    print_residues (R, octal, "Interim");
+                    print_residues (R, octal, hex, "Interim");
                     fflush (stdout);
                 }
             }
@@ -762,26 +810,30 @@ int main (int argc, char **argv) {
         if (verbose) {
             switch (len) {
                 case 1:
-                    printf ("Pepin residue: %016lx\n", r_bin[0]);
+                    printf ("P%lspin P%d residue: %016lx\n", pe, m, r_bin[0]);
                     break;
                 case 2:
-                    printf ("Pepin residue: %016lx %016lx\n", r_bin[1], r_bin[0]);
+                    printf ("P%lspin P%d residue: %016lx %016lx\n", pe, m, r_bin[1], r_bin[0]);
+                    break;
+                case 4:
+                    printf ("P%lspin P%d residue: %016lx %016lx %016lx %016lx\n", pe, m, r_bin[3], r_bin[2], r_bin[1], r_bin[0]);
                     break;
                 default:
-                    printf ("Pepin residue: length = %d, %016lx ... %016lx %016lx\n", len, r_bin[len-1], r_bin[1], r_bin[0]);
+                    printf ("P%lspin P%d residue: length = %d words, %016lx %016lx ... %016lx %016lx\n", pe, m, len, r_bin[len-1], r_bin[len-2], r_bin[1], r_bin[0]);
             }
         }
-        if (super_verbose) {
-            printf ("\n");
-            print_mpz (R, 10, "R");
+        if (super_verbose || (verbose && m < 12)) {
+            printf ("\nP%d = ", m);
+            mpz_out_str (stdout, 10, R);
+            printf (" modulo F%d\n\n",m);
         }
 
-        print_residues (R, octal, "Pepin");
+        print_residues (R, octal, hex, "Pepin");
 
         if (mpz_cmp (R, Fm1) == 0) {
-            printf ("F%d is prime!\n", n);
+            printf ("F%d is prime!\n", m);
         } else {
-            printf ("F%d is composite\n", n);
+            printf ("F%d is composite\n", m);
         }
         printf ("\n");
 
@@ -800,9 +852,17 @@ int main (int argc, char **argv) {
                 case 2:
                     printf ("Suyama A residue: %016lx %016lx\n", r_bin[1], r_bin[0]);
                     break;
+                case 4:
+                    printf ("Suyama A residue: %016lx %016lx %016lx %016lx\n", r_bin[3], r_bin[2], r_bin[1], r_bin[0]);
+                    break;
                 default:
-                    printf ("Suyama A residue: length = %d, %016lx ... %016lx %016lx\n", len, r_bin[len-1], r_bin[1], r_bin[0]);
+                    printf ("Suyama A residue: length = %d words, %016lx %016lx ... %016lx %016lx\n", len, r_bin[len-1], r_bin[len-2], r_bin[1], r_bin[0]);
             }
+        }
+        if (super_verbose || (verbose && m < 12)) {
+            printf ("\nSuyama A = ");
+            mpz_out_str (stdout, 10, A);
+            printf (" modulo F%d\n\n",m);
         }
 
         if (check_proof_res) {
@@ -820,7 +880,7 @@ int main (int argc, char **argv) {
 
     // If known factors were provided, perform the Suyama test to determine whether the remaining cofactor C is prime or composite
     if (n_fact > 0) {
-        printf ("Testing the F%d cofactor for primality using the following known factors: ", n);
+        printf ("Testing the F%d cofactor for primality using the following known factors: ", m);
         for (i = 0; i < n_fact; i++) {
             mpz_out_str (stdout, 10, fact[i]);
             printf (" ");
@@ -832,7 +892,9 @@ int main (int argc, char **argv) {
         for (i = 0; i < n_fact; i++) {
             mpz_mul (P, P, fact[i]);
         }
-//      print_mpz (P, 10, "P");
+        if (n_fact > 1) {
+            print_mpz (P, 10, "Product of known factors");
+        }
 
         // Calculate the cofactor C = F / P
         mpz_div (C, F, P);
@@ -841,22 +903,27 @@ int main (int argc, char **argv) {
         mpz_get_str (cof_s, 10, C);
         digits = strlen (cof_s);
 
-        if (super_verbose || digits < 600) {
+        if (super_verbose || m < 12) {
             printf ("Cofactor (%d digits): ", digits);
             mpz_out_str (stdout, 10, C);
-                if (super_verbose) {
-                    printf ("\nBinary representation:\n");
-                    mpz_out_str (stdout, 2, C);
-                }
+            if (super_verbose) {
+                printf ("\nBinary representation:\n");
+                mpz_out_str (stdout, 2, C);
+            }
             printf ("\n");
         } else {
             printf ("Cofactor is %d digits long\n", digits);
         }
+    }
 
-        print_residues (A, octal, "A");
+    // Break out of cofactor processing for a moment, so that F20 and F24 get their A residues printed
+    print_residues (A, octal, hex, "A");
+
+    // Back into cofactor processing
+    if (n_fact > 0) {
         if (modc) {
             mpz_mod (A, A, C);              // A mod C
-            print_residues (A, octal, "A mod C");
+            print_residues (A, octal, hex, "A mod C");
         }
         fflush (stdout);
 
@@ -864,28 +931,28 @@ int main (int argc, char **argv) {
         mpz_sub_ui (Pm1, P, 1L);
         mpz_powm (B, three, Pm1, F);
 
-        print_residues (B, octal, "B");
+        print_residues (B, octal, hex, "B");
         if (modc) {
             mpz_mod (B, B, C);              // B mod C
-            print_residues (B, octal, "B mod C");
+            print_residues (B, octal, hex, "B mod C");
         }
 
         // Calculate R = (A - B) mod C
         mpz_sub (R, A, B);                  // R = A - B
         mpz_mod (R, R, C);                  // R = (A - B) mod C
 
-        print_residues (R, octal, "(A-B) mod C");
+        print_residues (R, octal, hex, "(A - B) mod C");
 
         if (mpz_cmp_ui (R, 0L) == 0) {
-            printf ("F%d cofactor is prime!\n", n);
+            printf ("F%d cofactor is prime!\n", m);
         } else {
             mpz_sub (R, A, B);              // R = A - B
-            mpz_gcd (R, R, C);              // R = GCD ((A-B), C)
+            mpz_gcd (R, R, C);              // R = GCD ((A - B), C)
             if (mpz_cmp_ui (R, 1L) == 0) {
-                printf ("F%d cofactor is composite, and is not a prime power (GCD of A-B, C = 1)\n", n);
+                printf ("GCD (A - B, C) = 1\nF%d cofactor is composite, and is not a prime power\n", m);
             } else {
-                printf ("F%d cofactor is composite, and is also a prime power\n", n);   // Probably unlikely to ever reach this code
-                print_mpz (R, 10, "GCD of A-B, C");
+                print_mpz (R, 10, "GCD (A - B, C)");
+                printf ("F%d cofactor is composite, and is also a prime power\n", m);   // Probably unlikely to ever reach this code
             }
         }
         printf ("\n");
