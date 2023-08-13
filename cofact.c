@@ -4,11 +4,12 @@
  * Values: F is the Fermat number (2^2^n + 1), P is the product of known factors, C is the remaining cofactor.
  * Prints Res64 and Selfridge-Hurwitz residues on each step to compare with other programs. The steps are:
  *   Pepin Fermat test:
- *	R = 3^((F-1)/2) mod F			If R == -1 mod F then F is prime
+ *	R = 3^((F-1)/2) mod F			F is prime iff R == -1 mod F
  *   Suyama cofactor test:
  *	A = R^2 mod F = 3^(F-1) mod F		Prime95/mprime type 5 residue
  *	B = 2^(P-1) mod F
- *	(A - B) mod C
+ *	R = (A - B) mod C			C is prime iff R == 0
+ *	R = GCD (A-B, C)			C is a prime power iff R != 1
  *
  * cofact can be run in one of three modes:
  *   mode 1: Test a Fermat number for primality using the Pepin test. Then, if known factors are provided, use the Pepin residue to perform the Suyama PRP test on the cofactor.
@@ -38,7 +39,7 @@
 #define tv_msecs(tv) (tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0)
 
 const char *prog_name  = "cofact";
-const char *prog_vers  = "0.7";
+const char *prog_vers  = "0.8";
 const char *build_date = __DATE__;
 const char *build_time = __TIME__;
 
@@ -71,6 +72,20 @@ void print_mpz (mpz_t n, int base, char *name) {
     printf ("\n");
 }
 
+// Return the number of digits in the number
+int num_digits (mpz_t num) {
+    size_t digits;
+    char *num_s;				// The number as a string
+
+    digits = mpz_sizeinbase (num, 10);		// May be one too large
+    num_s = malloc (digits + 2);
+    mpz_get_str (num_s, 10, num);
+    digits = strlen (num_s);
+    free (num_s);
+
+    return (int) digits;
+}
+
 void usage () {
     printf ("Usage: cofact [-cpr file] [-d] [-h] [-p iter] [-sep] [-t threads] [-upr file] [-v] Fermat_exponent factor_1 factor_2 ...\n");
     printf ("    -cpr file    Read the Suyama A residue from the mprime proof file and compare it to the A residue calculated by cofact (mode 2)\n");
@@ -94,8 +109,7 @@ int main (int argc, char **argv) {
     unsigned long m;			// Iteration counter for square/mod loop
     unsigned long m_progress;		// The next m at which to print progress
     unsigned long m_progress_inc;	// The m increment at which to report progress
-    int digits;				// Number of digits int the cofactor
-    char *cof_s;			// The cofactor as a string
+    int digits;				// Number of digits in the cofactor
     int threads;			// Number of threads (cores) to use in gwnum library
     int verbose;			// Flag to enable printing more information
     int debug;				// Flag to enable printing debug information
@@ -107,6 +121,8 @@ int main (int argc, char **argv) {
     int res_len;			// The size of the proof file residue, in bytes
     char cmdline[CMD_LEN];		// The reconstructed command line
     char line[1024];			// Temp string
+    int fermat_prime;			// Flag indicating the Fermat number is prime
+    int cofactor_prime;			// Flag indicating the Fermat number cofactor is prime
     int argi, rtn, i;
 
     // Various time variables
@@ -141,6 +157,7 @@ int main (int argc, char **argv) {
     mpz_t A_proof;			// The proof file residue
     mpz_t tmp;				// Temp
 
+    // Variables associated with the mprime proof file
     char proof_file_name[NAME_LEN];	// Name of the proof file to read and (check or use)
     FILE *fp_proof;			// Proof file
     int version, hashsize;		// VERSION and HASHSIZE values from the proof file
@@ -195,7 +212,6 @@ int main (int argc, char **argv) {
     mpz_set_ui (mask64, 0xffffffffffffffffL);
     mpz_set_ui (three, 3L);
 
-    // Parse command line parameters
     threads = 1;		// Default to 1 thread
     verbose = 0;		// Default to no verbose
     debug = 0;			// Default to no debug
@@ -205,7 +221,7 @@ int main (int argc, char **argv) {
     m_progress_inc = 0;		// Default of 0 will be changed to 10% of the run
     n = 0;			// Invalid value, to make sure n is later set
 
-    // Parse command line arguments starting with "-" args
+    // Parse command line arguments starting with "-"
     // The following loop will exit when first non "-" argument is found
     for (argi = 1; argi < argc; argi++) {
 	if (strcmp(argv[argi], "-cpr") == 0) {
@@ -272,6 +288,7 @@ int main (int argc, char **argv) {
     if (n == 0) {
 	printf ("The Pepin test cannot be run on Fermat number F0 = 3\n");
 	printf ("F0 is prime!\n\n");
+	printf ("Factorization: F0 = p1\n\n");
 	goto fast_exit;
     }
 
@@ -394,8 +411,10 @@ int main (int argc, char **argv) {
     // If "use proof residue" enabled, skip the A calc steps; othwise perform them
     if (use_proof_res) {
     	printf ("Using A residue from proof file instead of calculating it\n");
-    	printf ("Skipping the Pepin test\n\n");
     	mpz_set (A, A_proof);
+
+    	printf ("Skipping the Pepin test\n\n");
+	fermat_prime = 0;					// If skipping the Pepin test, assume the Fermat number is composite
     } else {
     	// If not using proof file residue, do the full Pepin and Suyama calculations
 	printf ("Testing F%d for primality using the Pepin test\n", n);
@@ -467,8 +486,7 @@ int main (int argc, char **argv) {
 	    if (m < 24) {						// FIXME Good for n <= 2^24? Could this be set more intelligently?
 		gwsquare2_carefully (&gwdata, r_gw, r_gw);		// r_gw = (r_gw ^ 2) mod F
 	    } else {
-		gwsquare2 (&gwdata, r_gw, r_gw);			// r_gw = (r_gw ^ 2) mod F		Use this line when using gwnum from mprime v29.8
-//		gwsquare2 (&gwdata, r_gw, r_gw, 0);			// r_gw = (r_gw ^ 2) mod F		Use this line when using gwnum from mprime v30.8
+		gwsquare2 (&gwdata, r_gw, r_gw, 0);			// r_gw = (r_gw ^ 2) mod F
 	    }
 
 	    maxerr = gw_get_maxerr (&gwdata);
@@ -510,14 +528,15 @@ int main (int argc, char **argv) {
 	print_residues (R, "Pepin");
 
 	if (mpz_cmp (R, Fm1) == 0) {
+	    fermat_prime = 1;
 	    printf ("F%d is prime!\n\n", n);
 	} else {
+	    fermat_prime = 0;
 	    printf ("F%d is composite\n\n", n);
 	}
 
 	// Square/mod one more time to get A. This is the mprime proof file residue.
-	gwsquare2 (&gwdata, r_gw, r_gw);		// r_gw = (r_gw ^ 2) mod F		Use this line when using gwnum from mprime v29.8
-//	gwsquare2 (&gwdata, r_gw, r_gw, 0);		// r_gw = (r_gw ^ 2) mod F		Use this line when using gwnum from mprime v30.8
+	gwsquare2 (&gwdata, r_gw, r_gw, 0);		// r_gw = (r_gw ^ 2) mod F
 	len = gwtobinary64 (&gwdata, r_gw, r_bin, r_bin_buf_len);
 	mpz_import (A, len, -1, 8, 0, 0, r_bin);
 
@@ -556,10 +575,13 @@ int main (int argc, char **argv) {
 
 	// Calculate the cofactor C = F / P
 	mpz_div (C, F, P);
+/*
 	digits = mpz_sizeinbase (C, 10);
 	cof_s = malloc (digits + 2);
 	mpz_get_str (cof_s, 10, C);
 	digits = strlen (cof_s);
+*/
+	digits = num_digits (C);
 
 	if (digits < 600) {
 	    printf ("Cofactor (%d digits): ", digits);
@@ -585,9 +607,40 @@ int main (int argc, char **argv) {
 	print_residues (R, "(A-B) mod C");
 
 	if (mpz_cmp_ui (R, 0L) == 0) {
-	    printf ("F%d cofactor is prime!\n\n", n);
+	    cofactor_prime = 1;
+	    printf ("F%d cofactor is prime!\n", n);
 	} else {
-	    printf ("F%d cofactor is composite\n\n", n);
+	    cofactor_prime = 0;
+
+	    // Test if the cofactor is a prime power
+	    mpz_sub (R, A, B);			// R = A - B
+	    mpz_gcd (R, R, C);			// R = GCD ((A-B), C)
+	    if (mpz_cmp_ui (R, 1L) == 0) {
+		printf ("F%d cofactor is composite and is not a prime power\n", n);
+	    } else {
+		printf ("F%d cofactor is composite and is also a prime power!\n", n);
+		print_mpz (R, 10, "GCD (A-B, C)");
+	    }
+	}
+	printf ("\n");
+    }
+
+    // Print the compact factorization of the Fermat number
+    if (n_fact > 0) {						// Fermat number has known factors
+    	printf ("Factorization: F%d = ", n);
+	for (i = 0; i < n_fact; i++) {
+	    printf ("p%d * ", num_digits (fact[i]));
+	}
+    	if (cofactor_prime) {
+	    printf ("p%d\n\n", num_digits (C));
+	} else {
+	    printf ("c%d\n\n", num_digits (C));
+	}
+    } else {							// Fermat number does not have known factors
+    	if (fermat_prime) {
+	    printf ("Factorization: F%d = p%d\n\n", n, num_digits (F));
+	} else {
+	    printf ("Factorization: F%d = c%d\n\n", n, num_digits (F));
 	}
     }
 
