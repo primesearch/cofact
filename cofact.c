@@ -39,7 +39,7 @@
 #define tv_msecs(tv) (tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0)
 
 const char *prog_name  = "cofact";
-const char *prog_vers  = "0.8";
+const char *prog_vers  = "0.8.1";
 const char *build_date = __DATE__;
 const char *build_time = __TIME__;
 
@@ -123,7 +123,7 @@ int main (int argc, char **argv) {
     char line[1024];			// Temp string
     int fermat_prime;			// Flag indicating the Fermat number is prime
     int cofactor_prime;			// Flag indicating the Fermat number cofactor is prime
-    int argi, rtn, i;
+    int argi, rtn, i, j;
 
     // Various time variables
     static struct timeval tv_start, tv_stop, tv_progress_start, tv_progress_stop;
@@ -145,6 +145,8 @@ int main (int argc, char **argv) {
     int len;				// Temp
 
     mpz_t fact[N_FACT];			// The known factors of the Fermat number
+    mpz_t Base;				// Base for PRP test of a known factor
+    mpz_t Exp;				// Exponent for PRP test of a known factor
     mpz_t Fm1;				// The Fermat number - 1
     mpz_t F;				// The Fermat number
     mpz_t R;				// The Pepin residue, later the final Suyama residue
@@ -194,6 +196,8 @@ int main (int argc, char **argv) {
 
     // Initialize GMP variables
     for (i=0; i<=N_FACT; i++) mpz_init (fact[i]);
+    mpz_init (Base);
+    mpz_init (Exp);
     mpz_init (Fm1);
     mpz_init (F);
     mpz_init (R);
@@ -298,17 +302,46 @@ int main (int argc, char **argv) {
     mpz_mul_2exp (Fm1, Fm1, exp);	// "
     mpz_add_ui (F, Fm1, 1L);		// F = Fm1 + 1
 
-    // Parse the known factors and check that they divide the Fermat number
+    // Parse the known factors and do some sanity checks
     n_fact = argc - argi;
+    if (n_fact > N_FACT) {
+	printf ("Error: cofact currently supports a maximum of %d factors; %d factors supplied\n", N_FACT, n_fact);
+	exit (1);
+    }
     for (i = 0; i < n_fact; i++) {
     	if (mpz_set_str(fact[i], argv[argi], 10) != 0) {
 	    printf ("Error: cannot parse factor: %s\n", argv[argi]);
 	    exit (1);
 	}
+	// Check that the known factor is not <= one
+	if (mpz_cmp_ui (fact[i], 1L) <= 0) {
+	    printf ("Error: supplied factor is <= 1: %s\n", argv[argi]);
+	    printf ("Supplied factors must be primes that divide the Fermat number and must not be duplicated in the list\n");
+	    exit (1);
+	}
+	// Check that the known factor divides the Fermat number
 	mpz_tdiv_r (tmp, F, fact[i]);		// tmp = F mod fact[i]
 	if (mpz_cmp_ui (tmp, 0L) != 0) {
 	    printf ("Error: supplied factor does not divide F%d: %s\n", n, argv[argi]);
+	    printf ("Supplied factors must be primes that divide the Fermat number and must not be duplicated in the list\n");
 	    exit (1);
+	}
+	// Check that the known factor is a pseudo prime using Fermat's little theorem
+	mpz_set_ui (Base, 3L);
+	mpz_sub_ui (Exp, fact[i], 1L);
+	mpz_powm (R, Base, Exp, fact[i]);
+	if (mpz_cmp_ui (R, 1) != 0) {
+	    printf ("Error: supplied factor is composite: %s\n", argv[argi]);
+	    printf ("Supplied factors must be primes that divide the Fermat number and must not be duplicated in the list\n");
+	    exit (1);
+	}
+	// Check that the known factor is not a duplicate
+	for (j = 0; j < i; j++) {
+	    if (mpz_cmp (fact[i], fact[j]) == 0) {
+		printf ("Error: supplied factor is a duplicate: %s\n", argv[argi]);
+		printf ("Supplied factors must be primes that divide the Fermat number and must not be duplicated in the list\n");
+		exit (1);
+	    }
 	}
 	argi++;
     }
