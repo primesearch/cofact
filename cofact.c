@@ -72,6 +72,11 @@
 #include <gmp.h>
 
 #include "gwnum.h"
+#include "common.h"
+#include "../../exponentiate.c"
+#include "../../proof_hash.c"
+#include "roots.c"
+#include "verify.c"
 
 #define CMD_LEN 2048        // Length of the command line string supports factors of 
                             // sizes up to the F12 cofactor or thereabouts, which is 1,133 digits
@@ -84,7 +89,7 @@
 #define tv_msecs(tv) (tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0)
 
 const char *prog_name  = "cofact";
-const char *prog_vers  = "0.74c";
+const char *prog_vers  = "0.75c";
 const char *build_date = __DATE__;
 const char *build_time = __TIME__;
 
@@ -185,7 +190,7 @@ void usage (int verbose) {
     printf ("    factor(s)         Whole number(s) dividing a Fermat number F = 2^2^m + 1, m < 31\n\n");
     printf ("Flags:  -c, -cpr      Checks results against a verifiable delay function (VDF) proof file.\n");
     printf ("        -u, -upr      Skips P%lspin test, and uses a VDF proof file for the Suyama test only.\n", pe);
-    printf ("        -b, -o, -x    Binary, Octal, or heXadecimal output\n");
+    printf ("        -b, -o, -x    Binary, Octal, or heXadecimal output of Selfridge--Hurwitz residues\n");
     printf ("        -a, -i        All or interim residues printed\n");
     printf ("        -d, -v, -sv   Print debug, verbose, or super-verbose information\n");
     printf ("        -h, --help    This basic help\n");
@@ -324,7 +329,7 @@ void usage (int verbose) {
     printf ("      You cannot test F0. (It doesn't need testing. Try cofact 0 if you don't believe me.)\n");
     printf ("      You cannot test F31 or greater with cofact. (Yet. Preparations are afoot.)\n");
     printf ("      Testing F30 in mode 1 or 2 requires an x86 family processor with AVX-512 extensions.\n");
-    printf ("      Using proof files for F21 and above is highly advisable. Proofs for F17 to F29 are available \n");
+    printf ("      Using proof files for F21 and above is highly advisable. Proofs for F14 to F29 are available \n");
     printf ("      from:\n");
     printf ("          https://64ordle.au/fermat/ \n");
     printf ("\n");
@@ -513,18 +518,41 @@ int main (int argc, char **argv) {
     
     // Parse command line arguments starting with "-" args
     // The following loop will exit when first non "-" argument is found that is not allowed for,
-    // e.g. -c, -cpr, -u, -upr, -p, -q, -t, -w, -z all expect a following argument (filename or string or variable)
+    // e.g. -c, -cpr, -u, -upr, -p, -q, -t, -w, -y, -z all expect a following argument (filename or string or variable)
     for (argi = 1; argi < argc; argi++) {
-        if ((strcmp(argv[argi], "--help") == 0) || (strcmp(argv[argi], "--HELP") == 0)) {
-            usage (0);
-            exit (0);
+        if ((strcmp(argv[argi], "--all-residues") == 0) || (strcmp(argv[argi], "--ALL-RESIDUES") == 0)) {
+            all_int = 1;
         } else
-        if ((strcmp(argv[argi], "-cpr") == 0) || (strcmp(argv[argi], "-CPR") == 0)) {
+        if ((strcmp(argv[argi], "--binary") == 0) || (strcmp(argv[argi], "--BINARY") == 0)) {
+            if ((binary & 2) == 0) binary += 2;
+        } else
+        if ((strcmp(argv[argi], "-cpr") == 0) || (strcmp(argv[argi], "-CPR") == 0) || (strcmp(argv[argi], "--check-proof") == 0) || (strcmp(argv[argi], "--CHECK-PROOF") == 0)) {
             check_proof_res = 1;
             argi++;
             strncpy (proof_file_name, argv[argi], NAME_LEN-1);
         } else
-        if ((strcmp(argv[argi], "-sv") == 0) || (strcmp(argv[argi], "-SV") == 0)) {       // -sv turns on a lot of flags! Must be a separate flag
+        if ((strcmp(argv[argi], "--debug") == 0) || (strcmp(argv[argi], "--DEBUG") == 0)) {
+            debug = 1;
+        } else
+        if ((strcmp(argv[argi], "--help") == 0) || (strcmp(argv[argi], "--HELP") == 0)) {
+            help = 1;
+        } else
+        if ((strcmp(argv[argi], "--interim-residues") == 0) || (strcmp(argv[argi], "--INTERIM-RESIDUES") == 0)) {
+            interim = 1;
+        } else
+        if ((strcmp(argv[argi], "--report-json") == 0) || (strcmp(argv[argi], "--REPORT-JSON") == 0)) {
+            json = 1;
+        } else
+        if ((strcmp(argv[argi], "--known-factors") == 0) || (strcmp(argv[argi], "--KNOWN-FACTORS") == 0)) {
+            known_factors = 1;
+        } else
+        if ((strcmp(argv[argi], "--reduce-mod-c") == 0) || (strcmp(argv[argi], "--REDUCE-MOD-C") == 0)) {
+            modc = 1;
+        } else
+        if ((strcmp(argv[argi], "--octal") == 0) || (strcmp(argv[argi], "--OCTAL") == 0)) {
+            if ((binary & 8) == 0) binary += 8;
+        } else
+        if ((strcmp(argv[argi], "-sv") == 0) || (strcmp(argv[argi], "-SV") == 0) || (strcmp(argv[argi], "--super-verbose") == 0) || (strcmp(argv[argi], "--SUPER-VERBOSE") == 0)) {       // -sv turns on a lot of flags! Must be a separate flag
             binary = 25;
             debug = 1;
             interim = 1;
@@ -533,31 +561,55 @@ int main (int argc, char **argv) {
             verbose = 1;
             super_verbose = 1;
         } else
-        if ((strcmp(argv[argi], "-p") == 0) || (strcmp(argv[argi], "-P") == 0)) {
+        if ((strcmp(argv[argi], "--iterations") == 0) || (strcmp(argv[argi], "--ITERATIONS") == 0)) {
             argi++;
             j_progress_inc = atol(argv[argi]);
         } else
-        if ((strcmp(argv[argi], "-sep") || (strcmp(argv[argi], "-SEP") == 0)) == 0) {
+        if ((strcmp(argv[argi], "--computer") == 0) || (strcmp(argv[argi], "--COMPUTER") == 0)) {
+            argi++;
+            computer = argi;
+        } else
+        if ((strcmp(argv[argi], "-sep") == 0) || (strcmp(argv[argi], "-SEP") == 0) || (strcmp(argv[argi], "--separator") == 0) || (strcmp(argv[argi], "--SEPARATOR") == 0)) {
             sep = 1;
         } else
-        if ((strcmp(argv[argi], "-t") == 0) || (strcmp(argv[argi], "-T") == 0)) {
+        if ((strcmp(argv[argi], "--threads") == 0) || (strcmp(argv[argi], "--THREADS") == 0)) {
             argi++;
             threads = atoi(argv[argi]);
         } else
-        if ((strcmp(argv[argi], "-upr") == 0) || (strcmp(argv[argi], "-UPR") == 0)) {
+        if ((strcmp(argv[argi], "-upr") == 0) || (strcmp(argv[argi], "-UPR") == 0) || (strcmp(argv[argi], "--use-proof") == 0) || (strcmp(argv[argi], "--USE-PROOF") == 0)) {
             use_proof_res = 1;
             argi++;
             strncpy (proof_file_name, argv[argi], NAME_LEN-1);
         } else
-        if (strncmp(argv[argi], "-", 1) == 0) {     // Combined -abcdvhijkmoquwxyz flags, processed in that order
+        if ((strcmp(argv[argi], "--verbose") == 0) || (strcmp(argv[argi], "--VERBOSE") == 0) || (strcmp(argv[argi], "--separator") == 0) || (strcmp(argv[argi], "--SEPARATOR") == 0)) {
+            verbose = 1;
+        } else
+        if ((strcmp(argv[argi], "--user") == 0) || (strcmp(argv[argi], "--USER") == 0)) {
+            argi++;
+            who = argi;
+        } else
+        if ((strcmp(argv[argi], "--hex") == 0) || (strcmp(argv[argi], "--HEX") == 0) || (strcmp(argv[argi], "--hexadecimal") == 0) || (strcmp(argv[argi], "--HEXADECIMAL") == 0)) {
+            if ((binary & 16) == 0) binary += 16;
+        } else
+        if ((strcmp(argv[argi], "--mersenne") == 0) || (strcmp(argv[argi], "--MERSENNE") == 0)) {
+            mpz_set_str (tmp, argv[argi+1], 10);
+            exp = mpz_get_ui (tmp);
+            if (exp < 3) {printf ("Smallest Mersenne exponent must exceed 2.\n\n"); exit (1);}
+            if (mpz_cmp_ui (tmp, exp) != 0 || exp > 1073741824) {printf ("Mersenne exponent must not exceed 2^30 = 1073741824.\n\n"); exit (1);}
+        } else
+        if ((strcmp(argv[argi], "--base") == 0) || (strcmp(argv[argi], "--BASE") == 0)) {
+            argi++;
+            mpz_set_str(B, argv[argi], 10); 
+        } else
+        if (strncmp(argv[argi], "-", 1) == 0) {     // Combined -abcdhijkmopqtuvwxyz flags, processed in alphabetical order
             z = 0;
-            flags = strpbrk(argv[argi], "aAbBcCdDvVhHiIjJkKmMoOqQuUwWxXyYzZ");      // We are somewhat tolerant of upper case
+            flags = strpbrk(argv[argi], "aAbBcCdDhHiIjJkKmMoOpPqQtTuUvVwWxXyYzZ");      // We are somewhat tolerant of upper case
             if (flags != NULL) {
                 flags = strpbrk(argv[argi], "aA");
                 if (flags != NULL) all_int = 1;
                 flags = strpbrk(argv[argi], "bB");
                 if (flags != NULL && (binary & 2) == 0) binary += 2;
-                flags = strpbrk(argv[argi], "cC");   // increment z to ensure we advance argument past file
+                flags = strpbrk(argv[argi], "cC");   // increment z to ensure only one flag requiring a parameter is flagged at any time
                 if (flags != NULL) { check_proof_res = 1; strncpy (proof_file_name, argv[argi+1], NAME_LEN-1); z++; }
                 flags = strpbrk(argv[argi], "dD");
                 if (flags != NULL) debug = 1;
@@ -573,9 +625,13 @@ int main (int argc, char **argv) {
                 if (flags != NULL) modc = 1;
                 flags = strpbrk(argv[argi], "oO");
                 if (flags != NULL && (binary & 8) == 0) binary += 8;
+                flags = strpbrk(argv[argi], "pP");
+                if (flags != NULL) { j_progress_inc = atol(argv[argi+1]); z++; }
                 flags = strpbrk(argv[argi], "qQ");
                 if (flags != NULL) {computer = argi+1; z++;}
-                flags = strpbrk(argv[argi], "uU");   // increment z to ensure we advance argument past file
+                flags = strpbrk(argv[argi], "tT");
+                if (flags != NULL) { threads = atoi(argv[argi+1]); z++; }
+                flags = strpbrk(argv[argi], "uU");
                 if (flags != NULL) { use_proof_res = 1; strncpy (proof_file_name, argv[argi+1], NAME_LEN-1); z++; }
                 flags = strpbrk(argv[argi], "vV");
                 if (flags != NULL) verbose = 1;
@@ -593,18 +649,18 @@ int main (int argc, char **argv) {
                 flags = strpbrk(argv[argi], "zZ");   // increment z to ensure we advance argument past number
                 if (flags != NULL) { mpz_set_str(B, argv[argi+1], 10); z++; }
                 // reserving g for Gerbicz error checking
-                flags = strpbrk(argv[argi], "eEfFgGlLnNpPrRsStT1234567890"); // check if there were other letters or numbers in combined flag
+                flags = strpbrk(argv[argi], "eEfFgGlLnNrRsS1234567890"); // check if there were other letters or numbers in combined flag
                 if (flags != NULL) {
                     printf ("Warning: unknown option in command line flag: %s\n", argv[argi]);
                     usage (0);
                     printf ("Ignoring unknown option and processing other flags\n");
                 }
                 if (z > 1) {
-                    printf ("Error: problem with flag: %s %s\nMultiple options in this flag require a parameter; these should be handled separately.\n\n", argv[argi], argv[argi+1]);
+                    printf ("Error: problem with command line flag: %s %s\nMultiple options in this flag require a parameter; these should be handled separately.\n\n", argv[argi], argv[argi+1]);
                     usage (0);
                     exit (1);
                 }
-                if (z == 1) argi++;     // increment argument to bypass value (filename or variable) passed in by -c, -q, -u, -w, or -z
+                if (z == 1) argi++;     // increment argument to bypass value (filename or variable) passed in by -c, -p, -q, -t, -u, -w, or -z
             } else {
                 printf ("Error: unknown command line flag: %s\n", argv[argi]);
                 usage (0);
@@ -656,8 +712,8 @@ int main (int argc, char **argv) {
             if (i == argi - 1) printf ("-y ");
             printf ("%s ", argv[i]);
         }
-        exp = m;
-        m = 0;
+        exp = m;    // Since F0 cannot be tested, m == 0 will be used
+        m = 0;      // from here-on to indicate a Mersenne exponent
         printf ("\nRunning Fermat-PRP test on Mersenne M%lu = 2^%lu - 1\n", exp, exp);
     }
 
@@ -671,21 +727,57 @@ int main (int argc, char **argv) {
             printf (" cannot be run on Fermat number F%d = %d\nF%d is prime!\n\n", m, z, m);
             goto fast_exit;
         }
+        z = 0;
     }
     if (exp != 0) {     // If exp is not zero then m is a Mersenne exponent; we make m equal to zero to avoid confusion
         m = 0;
         known_factors = 0;
-        if (exp != 3) {
+        if (exp != 3 && exp != 5) { // Try Pomerance, Brillhart, and Wagstaff's strong pseudoprime test: Miller-Rabin for bases 2, 3, 5
+            x = exp - 1;
+            y = 0;
+            z = 0;
+            while ((x & 1) == 0) {y++; x = x >> 1;} // exp - 1 = x . 2^y
             mpz_set_ui (C, exp);
-            mpz_sub_ui (tmp, C, 1L);
-            mpz_powm (P, GMPbase, tmp, C);
-            if (mpz_cmp_ui (P, 1L) != 0) {printf ("Note the Mersenne exponent %lu is composite.\n\n", exp); json = 0;}
+            for (i = 2; i < 5; i++) {
+                mpz_set_ui (tmp, x);
+                if (i == 4) mpz_set_ui (Q, 5L); else mpz_set_ui (Q, i);
+                mpz_powm (P, Q, tmp, C);
+                mpz_set (S, P);
+                for (j = 0; j < y; j++){
+                    mpz_add_ui (tmp, S, 1L);
+                    if (mpz_cmp (tmp, C) == 0) break;
+                    mpz_mul (S, S, S);
+                    mpz_tdiv_r (S, S, C);
+                }
+                if ((mpz_cmp_ui (P, 1L) != 0) && (mpz_cmp (tmp, C) != 0)) {
+                    printf ("sprp (%d) failed, %d^", i * 5 >> 2, i * 5 >> 2);
+                    if (mpz_cmp_ui (P, 1L) != 0) printf ("%lu == %lu (mod %lu", x, mpz_get_ui (P), exp); else printf ("(%lu.2^%lu) == %lu (mod %lu", x, j, mpz_get_ui (S), exp);
+                    printf ("): the Mersenne exponent %lu is composite.\n", exp);
+                    json = 0;
+                    z = 1;
+                    // exit (0); // Composite Mersenne exponents disallowed?
+                } else {
+                    if (debug) {
+                        printf ("sprp (%d) passed, %d^", i * 5 >> 2, i * 5 >> 2);
+                        if (mpz_cmp_ui (P, 1L) == 0) printf ("%lu == %lu (mod %lu", x, mpz_get_ui (P), exp); else printf ("(%lu.2^%lu) == %lu (mod %lu", x, j, mpz_get_ui (S), exp);
+                        printf ("): the Mersenne exponent %lu is a strong pseudo-prime to base %d\n", exp, i * 5 >> 2);
+                    }
+                }
+                if (!debug && z == 1) break;
+            } // There are only 3 pseudoprimes left below 10^9
+            if (z == 0 && (exp % 2251 == 0 || exp % 7333 == 0 || exp % 11717 == 0)) {
+                printf ("The Mersenne exponent %lu is a strong pseudo-prime to bases 2, 3, and 5, but is composite.\n", exp);
+                json = 0;
+                exit (0); // Composite Mersenne exponents disallowed?
+            }
+            printf ("\n");
+            z = 0;
         }
     }
     k_fact = 0;
     if (exp > 36) SH = 6; else SH = m;
 
-    if (m > 0) { // Setup for Fermat numbers
+    if (m > 0) { // Setup for Fermat numbers, including known factors
         if (debug) printf ("Calculate the Fermat number F%d = 2^(2^%d)+1 and F-1\n", m, m); fflush (stdout);
         exp = 1 << m;                   // Exponent of 2 = 2^m
         mpz_mul_2exp (Fm1, Fm1, exp);   // Fm1 = 2^2^m
@@ -814,151 +906,20 @@ int main (int argc, char **argv) {
 */
             }
         }
-    } else {        // Set up F for Mersenne exponents
+    } else {        // Set up F for Mersenne exponents; pre-programmed, known factors are unavailable
         if (debug) printf ("Calculate the Mersenne number M%lu = 2^%lu-1 and M%lu - 1\n", exp, exp, exp); fflush (stdout);
         mpz_mul_2exp (F, F, exp);       // F   = 2^exp
         mpz_sub_ui (F, F, 1L);          // F   = 2^exp - 1
         mpz_sub_ui (Fm1, F, 1L);        // Fm1 = 2^exp - 2
     }
 
-    n_fact = 0;                 // Initialise the expected number of factors to test after Pepin test
-    for (i = 0; i < k_fact; i++) {kpow[i] = 0;}
-    if (known_factors && mpz_cmp_ui (kfac[0], 1L) != 0) {
-        n_fact = k_fact;
-        for (i = 0; i < k_fact; i++) {
-            mpz_set (fact[i], kfac[i]);
-            kpow[i] = 1;
-            ncomp[i] = 0;
-        }
-    }
-    // Parse the user-submitted factors, and do some various sanity tests
-    n_fact += argc - argi;
-    if (n_fact > N_FACT) {
-        printf ("Error: too many factors (%d) supplied. Maximum number of factors is %d.\n", n_fact, N_FACT);
-        if (known_factors) printf ("Try re-running cofact without the -k flag.\n");
-        exit (1);
-    }
-    z = 0;
-    if (debug) printf("k_fact = %d, n_fact = %d, argi = %d\n", k_fact, n_fact, argi);
-    for (i = k_fact*known_factors; i < n_fact; i++) {
-        if (mpz_set_str(fact[i-z], argv[argi], 10) != 0) {
-            printf ("Error: cannot parse factor: %s (continuing without it)\n", argv[argi]);
-            z++;
-        } else {
-            if (mpz_cmp_ui (fact[i-z], 1L) <= 0 || mpz_cmp (fact[i-z], F) == 0) {
-                printf ("Error: trivial factor %s omitted (continuing without it)\n", argv[argi]);
-                z++;
-            } else {
-                mpz_tdiv_r (tmp, F, fact[i-z]);       // tmp = F mod fact[i]
-                if (mpz_cmp_ui (tmp, 0L) != 0) {
-                    printf ("Error: supplied factor %s does not divide ", argv[argi]);
-                    if (m == 0) printf ("M%lu", exp); else printf ("F%d", m);
-                    printf (": (continuing without it)\n");
-                    z++;
-                }
-            }
-        }
-        argi++;
-    }
-    n_fact -= z;
-    for (i = 0; i < n_fact; i++) {
-        if (!known_factors || (known_factors && i >= k_fact)) {
-            // Check that the supplied factor is not a duplicate
-            for (j = 0; j < i; j++) {
-                if (m != 0 && mpz_cmp (fact[i], fact[j]) == 0) {
-                    printf ("Error: supplied factor is a duplicate: ");
-                    mpz_out_str (stdout, 10, fact[i]);
-                    printf ("\nKnown prime factors cannot be exponentiated and still divide the Fermat number.\n");
-                    if (known_factors) printf ("Try re-running cofact without the -k flag.\n");
-                    exit (1);
-                }
-            }
-            // Check that the known factor is a pseudo-prime using Fermat's little theorem
-            mpz_sub_ui (tmp, fact[i], 1L);
-            if (m == 0 && mpz_tdiv_ui (fact[i], 3L) == 0) {
-                if (mpz_cmp_ui (fact[i], 3L) != 0) {
-                    printf ("Supplied factor ");
-                    mpz_out_str (stdout, 10, fact[i]);
-                    printf (" is composite.\n");
-                    ncomp[i] = 1;
-                } else {
-                    ncomp[i] = 0;
-                }
-            } else {
-                mpz_powm (P, GMPbase, tmp, fact[i]);
-                if (mpz_cmp_ui (P, 1L) != 0) {
-                    printf ("Supplied factor ");
-                    mpz_out_str (stdout, 10, fact[i]);
-                    symb = " = ";
-                    mpz_set (P, fact[i]);
-                    for (j = 0; j < k_fact; j++) {
-                        mpz_tdiv_r (tmp, fact[i], kfac[j]);
-                        if (mpz_cmp_ui (tmp, 0L) == 0) {
-                            printf ("%s", symb);
-                            symb = " * ";
-                            mpz_out_str (stdout, 10, kfac[j]);
-//                             printf (" ");
-                            kpow[j]++;
-                            mpz_tdiv_q (P, P, kfac[j]);
-                        }
-                    }
-                    if (mpz_cmp_ui (P, 1) != 0) {
-                        if (k_fact > 0) {
-                            printf (" * ");
-                            mpz_out_str (stdout, 10, P);
-//                             printf (" ");
-                        }
-                        printf (" is composite.\n\n");
-                        if (m != 0) {
-                            mpz_out_str (stdout, 10, P);
-                            printf (" is NOT a known factor!\n\n");
-                        }
-                    } else {
-                        printf (" is composite.\n");
-                    }
-                    ncomp[i] = 1;
-                } else {
-                    ncomp[i] = 0;
-                    n_comp = 0;
-                }
-            }
-        }
-    }
-    for (i = 0; i < k_fact; i++) {
-        if (m != 0 && kpow[i] > 1) {
-            printf ("Prime factor ");
-            mpz_out_str (stdout, 10, kfac[i]);
-            printf (" appears more than once in the command string, as the factor of a composite factor.\n");
-            printf ("Please make sure known prime factors only appear once.\n");
-            if (known_factors) printf ("Try re-running cofact without the -k flag, as this includes all %d known prime factors.\n", k_fact);
-            exit (1);
-        }
-    }
-    // Calculate Q = product of the known or supplied factors and check that combined, they divide F
-    mpz_set (Q, fact[0]);
-    for (i = 1; i < n_fact; i++) {
-        mpz_mul (Q, Q, fact[i]);
-    }
-    // Test whether cofactor F = 0 mod Q
-    mpz_div (C, F, Q);
-    mpz_tdiv_r (tmp, F, Q);
-    if (mpz_cmp_ui (tmp, 0L) != 0 && n_fact > 0) {
-        printf ("Error: each supplied factor taken individually divides ");
-        if (m == 0) printf ("M%lu,\nbut M%lu", exp, exp); else printf ("F%d,\nbut F%d", m, m);
-        printf (" is not equal to 0 modulo the combined product of factors.\n\nPlease resolve which factors you wish to test.\n");
-        exit (1);
-    }
-
-    z = 0;
-
-    // If checking or using a proof file residue is enabled, read the proof file
-    if (check_proof_res && use_proof_res) {
-        printf ("Error: Can only specify one of -cpr and -upr\n\n");
-        printf ("Aborting P%lspin test and using specified proof for Suyama test\n", pe);
-        check_proof_res = 0;
-    }
-
+    // If a proof is to be checked or used, read the proof file and sanity check values
     if (check_proof_res || use_proof_res) {
+        // If both --check and --use flags have been set, warn and default to 'use'
+        if (check_proof_res && use_proof_res) {
+            printf ("Error: Can only specify one of -cpr and -upr\n\nAborting P%lspin test and using specified proof for Suyama test\n", pe);
+            check_proof_res = 0;
+        }
         printf ("Reading residue from proof file: %s\n", proof_file_name);
 
         if ((fp_proof = fopen (proof_file_name, "rb")) == NULL) {               // The "b" is not needed according to fopen man page
@@ -982,10 +943,12 @@ int main (int argc, char **argv) {
             printf ("Error: Cannot read POWER string from proof file header\n");
             exit (1);
         }
-        if (fscanf (fp_proof, "BASE=%ld\n", &y) == 1) {
-            if (mpz_cmp_ui (B, y) != 0) printf ("Error: Proof base %ld does not equal cofact argument -z\n", y);
-        } else {
-            if (y == 0) y = 3;
+        y = 0;                                  // Set y to zero to check we get a legitimate value
+        fscanf (fp_proof, "BASE=%ld\n", &y);    // Note, the PRP base is an optional field, so its absence here is not necessarily an error
+        if (y == 0) y = 3;                      // Default base 3 may be incorrectly reported as zero
+        if (mpz_cmp_ui (B, y) != 0) {
+            printf ("Error: Proof base %ld does not equal cofact argument -z or --base %lu; using proof base %ld\n\n", y, mpz_get_ui (B), y);
+            mpz_set_ui (B, y);
         }
         if (fscanf (fp_proof, "NUMBER=%2047[^\n]%1[\n]", proof_desc_s, newline) != 2) {
             printf ("Error: Cannot read proof description string from proof file header\n");
@@ -1047,13 +1010,6 @@ int main (int argc, char **argv) {
             printf ("Error: Cannot read residue from proof file. Returned %d\n", rtn);
             exit (1);
         }
-/*
-        printf ("Proof file residue: \n");
-        for (i=0; i<16; i++) {
-            printf ("%02x ", A_proof_raw[i]);
-        }
-        printf ("\n");
-*/
         if (debug) {
             printf ("Proof file A residue LSBs: \n");
             for (i=0; i<16; i++) {
@@ -1070,16 +1026,190 @@ int main (int argc, char **argv) {
         printf ("\n");
     }
 
+    // Check the base chosen is useable
+    jacobi = 0;
+    if (m != 0) jacobi = mpz_jacobi (B, F);
+    if (mpz_cmp_ui (B, 2L) < 0) {
+        if (m != 0) printf ("Please select a useable base for the P%lspin test, e.g. -z 3, -z 5, -z 6, -z 7, ...\n(The OEIS has lists of such bases: https://oeis.org/A129802 or https://oeis.org/A102742)\n\nSetting PRP base to 3\n\n", pe);
+        else printf ("Fermat-PRP base is unuseable\n\nSetting PRP base to 3\n\n");
+        mpz_set (B, GMPbase);
+    }
+    l = 0;
+    y = mpz_get_ui (B);
+    if (mpz_cmp_ui (B, y) == 0) {
+        x = 65536;
+        for (i = 0; i < 48; i++) {
+            if (x - y == 1 || y - x == 1) l = 2; // l = 2 means we have likely dodgy Fermat-PRP / Pepin
+            x = x << 1;
+        }
+        while ((y & 1) == 0) {y = y >> 1;}
+        if (y == 1) {
+            if (m != 0) printf ("The base for the P%lspin test cannot be a power of 2. Please select a useable base,\ne.g. -z 3, -z 5, -z 6, -z 7, ...\n(The OEIS has lists of such bases: https://oeis.org/A129802 or https://oeis.org/A102742)\n\nSetting PRP base to 3\n\n", pe);
+            else printf ("The Fermat-PRP base cannot be a power of 2.\n\nSetting PRP base to 3\n\n"); 
+            mpz_set (B, GMPbase);
+        }
+    }
+    if (l == 2) printf ("*** Warning: using base %lu may give incorrect results for a Fermat-PRP test.\n\n", mpz_get_ui (B));
+    if (m != 0) {
+        jacobi = mpz_jacobi (B, F); // retest, as we may have changed B
+        if (jacobi != -1) printf ("Please use a standard base for the P%lspin test such as 3, 5, 6, 7, ...\n(The OEIS has lists of such bases: https://oeis.org/A129802 or https://oeis.org/A102742)\n\nRunning Fermat-PRP test instead\n\n", pe);
+    }
+
+    // Major sanity check: the Fermat or Mersenne number is not divisible by the base!!!
+    mpz_tdiv_r (tmp, F, B);
+    if (mpz_cmp_ui (tmp, 0L) == 0) {
+        if (m == 0) printf ("Error: M%lu", exp); else printf ("Error: F%d", m);
+        printf (" is divisible by base %lu\nPlease select a different base, using the -z or --base flag\n\n", mpz_get_ui(B));
+        exit (1);
+    }
+
+    n_fact = 0;     // Initialise the expected number of factors to test after Pepin or Fermat-PRP test
+    for (i = 0; i < k_fact; i++) {kpow[i] = 0;}
+    if (known_factors && mpz_cmp_ui (kfac[0], 1L) != 0) {
+        n_fact = k_fact;
+        for (i = 0; i < k_fact; i++) {
+            mpz_set (fact[i], kfac[i]);
+            kpow[i] = 1;
+            ncomp[i] = 0;
+        }
+    }
+    // Parse the user-submitted factors, and do some various sanity tests
+    n_fact += argc - argi;
+    if (n_fact > N_FACT) {
+        printf ("Error: too many factors (%d) supplied. Maximum number of factors is %d.\n", n_fact, N_FACT);
+        if (known_factors) printf ("Try re-running cofact without the -k flag.\n");
+        exit (1);
+    }
+    z = 0;
+    if (debug) printf("k_fact = %d, n_fact = %d, argi = %d\n", k_fact, n_fact, argi);
+    for (i = k_fact*known_factors; i < n_fact; i++) {
+        if (mpz_set_str(fact[i-z], argv[argi], 10) != 0) {
+            printf ("Error: cannot parse factor: %s (continuing without it)\n", argv[argi]);
+            z++;
+        } else {
+            if (mpz_cmp_ui (fact[i-z], 1L) <= 0 || mpz_cmp (fact[i-z], F) == 0) {
+                printf ("Error: trivial factor %s omitted (continuing without it)\n", argv[argi]);
+                z++;
+            } else {
+                mpz_tdiv_r (tmp, F, fact[i-z]);       // tmp = F mod fact[i]
+                if (mpz_cmp_ui (tmp, 0L) != 0) {
+                    printf ("Error: supplied factor %s does not divide ", argv[argi]);
+                    if (m == 0) printf ("M%lu", exp); else printf ("F%d", m);
+                    printf (": (continuing without it)\n");
+                    z++;
+                }
+            }
+        }
+        argi++;
+    }
+    n_fact -= z;
+    for (i = 0; i < n_fact; i++) {
+        if (!known_factors || (known_factors && i >= k_fact)) {
+            // Check that the supplied factor is not a duplicate
+            for (j = 0; j < i; j++) {
+                if (m != 0 && mpz_cmp (fact[i], fact[j]) == 0) {
+                    printf ("Error: supplied factor is a duplicate: ");
+                    mpz_out_str (stdout, 10, fact[i]);
+                    printf ("\nKnown prime factors cannot be exponentiated and still divide the Fermat number.\n");
+                    if (known_factors) printf ("Try re-running cofact without the -k flag.\n");
+                    exit (1);
+                }
+            }
+            // Check that the supplied factor is a strong probable prime 
+            if ((m == 0) && (mpz_tdiv_ui (fact[i], 3L)) == 0) { // Is 3 a factor, or does it divide the factor?
+                if (mpz_cmp_ui (fact[i], 3L) != 0) {
+                    printf ("Supplied factor ");
+                    mpz_out_str (stdout, 10, fact[i]);
+                    printf (" is composite.\n");
+                    ncomp[i] = 1;
+                } else {
+                    ncomp[i] = 0;
+                }
+            } else {    // If 3 does not divide the factor, then we can run a strong 3-PRP test
+                mpz_sub_ui (tmp, fact[i], 1L);
+                x = mpz_tstbit (tmp, 0);
+                y = 0;
+                while (x == 0) {y++; mpz_tdiv_q_2exp (tmp, tmp, 1L); x = mpz_tstbit (tmp, 0);}
+                mpz_powm (P, GMPbase, tmp, fact[i]);            // we will test if 3^x == 1 (mod fact[i])
+                mpz_set (S, P);
+                for (l = 0; l < y; l++) {
+                    mpz_add_ui (tmp, S, 1L);
+                    if (mpz_cmp (tmp, fact[i]) == 0) break;     // break if 3^(x.2^l) == -1 (mod fact[i])
+                    mpz_mul (S, S, S);
+                    mpz_tdiv_r (S, S, fact[i]);
+                }
+                if ((mpz_cmp_ui (P, 1L) != 0) && (mpz_cmp (tmp, fact[i]) != 0)) { // if neither condition, composite
+                    printf ("Supplied factor ");
+                    mpz_out_str (stdout, 10, fact[i]);
+                    symb = " = ";
+                    mpz_set (P, fact[i]);
+                    for (j = 0; j < k_fact; j++) {
+                        mpz_tdiv_r (tmp, fact[i], kfac[j]);
+                        if (mpz_cmp_ui (tmp, 0L) == 0) {
+                            printf ("%s", symb);
+                            symb = " * ";
+                            mpz_out_str (stdout, 10, kfac[j]);
+                            kpow[j]++;
+                            mpz_tdiv_q (P, P, kfac[j]);
+                        }
+                    }
+                    if (mpz_cmp_ui (P, 1) != 0) {
+                        if (k_fact > 0) {
+                            printf (" * ");
+                            mpz_out_str (stdout, 10, P);
+                        }
+                        printf (" is composite.\n\n");
+                        if (m != 0) {
+                            mpz_out_str (stdout, 10, P);
+                            printf (" is NOT a known factor!\n\n");
+                        }
+                    } else {
+                        printf (" is composite.\n");
+                    }
+                    ncomp[i] = 1;
+                } else {
+                    ncomp[i] = 0;
+                    n_comp = 0;
+                }
+            }
+        }
+    }
+    for (i = 0; i < k_fact; i++) {
+        if (m != 0 && kpow[i] > 1) { // Fermat factors
+            printf ("Prime factor ");
+            mpz_out_str (stdout, 10, kfac[i]);
+            printf (" appears more than once in the command string, as the factor of a composite factor.\n");
+            printf ("Please make sure known prime factors only appear once.\n");
+            if (known_factors) printf ("Try re-running cofact without the -k or --known-factors flag, as this includes\nall %d known prime factors.\n", k_fact);
+            exit (1);
+        }
+    }
+    // Calculate Q = product of the known or supplied factors and check that combined, they divide F
+    mpz_set (Q, fact[0]);
+    for (i = 1; i < n_fact; i++) {
+        mpz_mul (Q, Q, fact[i]);
+    }
+    // Test whether cofactor F = 0 mod Q
+    mpz_div (C, F, Q);
+    mpz_tdiv_r (tmp, F, Q);
+    if (mpz_cmp_ui (tmp, 0L) != 0 && n_fact > 0) {
+        printf ("Error: each supplied factor taken individually divides ");
+        if (m == 0) printf ("M%lu,\nbut M%lu", exp, exp); else printf ("F%d,\nbut F%d", m, m);
+        printf (" is not equal to 0\nmodulo the combined product of factors.\n\nPlease resolve which factors you wish to test.\n");
+        exit (1);
+    }
+
+    z = 0;
+
     // If "use proof residue" enabled, skip the A calculation steps; otherwise perform them
     if (use_proof_res) {
         printf ("Using A residue from proof file instead of calculating it\n");
+        if (debug) {printf ("Call to GW proof validation:\n\n"); fflush(stdout); i = 0;}
+        i = verify (proof_file_name, verbose || debug);
+        if (debug) printf ("Return from proof validation = %d\n", i);
+        if (i > fft_length) fft_length = i;
+
         if (m != 0) printf ("Skipping the P%lspin test\n\n", pe);
-        if (mpz_cmp_ui (B, 3L) < 0) { printf ("Fermat-PRP base is unuseable\n\nSetting PRP base to %lu\n\n", y); mpz_set_ui (B, y);}
-        x = mpz_get_ui (B);
-        if (mpz_cmp_ui (B, x) == 0) {
-            while ((x & 1) == 0) {x = x >> 1;}
-            if (x == 1) { printf ("The Fermat-PRP base cannot be a power of 2.\n\nSetting PRP base to %lu\n\n", y); mpz_set_ui (B, y);}
-        }
         mpz_set (A, A_proof);
         mpz_set (GMPbase, B);
         mpz_set (B, A_proof);
@@ -1090,29 +1220,15 @@ int main (int argc, char **argv) {
     } else {
         // If not using proof file residue, do the full Pepin and Suyama calculations; first, sanity checks for useable Pepin base
 
-        if (mpz_cmp_ui (B, 3L) < 0) { printf ("Please select a useable base for the P%lspin test, e.g. -z 3, -z 5, -z 6, -z 7, ...\n(The OEIS has lists of such bases: https://oeis.org/A129802 or https://oeis.org/A102742)\n\nSetting PRP base to 3\n\n", pe); mpz_set_ui (B, 3L);}
-        if (m != 0) jacobi = mpz_jacobi (B, F); // if jacobi = -1 then we can do a Pepin test
-        if (debug && m != 0) {printf ("Jacobi ("); mpz_out_str (stdout, 10, B); printf ("/F%d) = %d\n", m, jacobi);}
-        y = mpz_get_ui (B);
-        l = 0;
-        if (mpz_cmp_ui (B, y) == 0) {
-            x = 65536;
-            for (i = 0; i < 48; i++) {
-                if (x - y == 1 || y - x == 1) l = 2; // l = 2 means we have likely dodgy Fermat-PRP
-                x = x << 1;
-            }
-            x = y;
-            while ((x & 1) == 0) {x = x >> 1;}
-            if (x == 1) { printf ("The P%lspin base cannot be a power of 2.\n\nSetting PRP base to 3\n\n", pe); mpz_set_ui (B, 3L); jacobi = -1;}
-        }
-        if (l == 2) printf ("*** Warning: using base %lu may give incorrect results for a Fermat-PRP test.\n\n", y);
-            else if (jacobi != -1 && m != 0) printf ("Please use a standard base for the P%lspin test such as 3, 5, 6, 7, ...\n(The OEIS has lists of such bases: https://oeis.org/A129802 or https://oeis.org/A102742)\n\nRunning Fermat-PRP test instead\n\n", pe);
         mpz_set (GMPbase, B);
-        if (jacobi == -1) {
-            if (mpz_cmp_ui (GMPbase, 3L) == 0) symb = ""; else symb = ", base ";
-            printf ("Testing F%d for primality using the P%lspin test%s", m, pe, symb);
-            if (mpz_cmp_ui (GMPbase, 3L) != 0) mpz_out_str (stdout, 10, GMPbase);
-            printf ("\n");
+        if (m != 0) {
+            jacobi = mpz_jacobi (GMPbase, F);
+            if (debug) printf ("Jacobi (%lu/F%d) = %d\n", mpz_get_ui (GMPbase), m, jacobi);
+            if (jacobi == -1) {
+                printf ("Testing F%d for primality using the P%lspin test", m, pe);
+                if (mpz_cmp_ui (GMPbase, 3L) != 0) printf (", base %lu", mpz_get_ui (GMPbase));
+                printf ("\n");
+            }
         }
         printf ("Using %d threads in gwnum library\n", threads);
         fflush (stdout);
@@ -1181,13 +1297,10 @@ int main (int argc, char **argv) {
         (void) gettimeofday(&tv_progress_start, (struct timezone *) 0);
 
         // Flags a and b cannot be run together with m > 5
-        if (all_int && m > 5 && (binary & 2) == 2) binary += -2;
-        if (m == 0) y = 6; else y = m;
+        if (all_int && exp > 61 && (binary & 2) == 2) binary -= 2;
         if (interim || all_int || j_progress_inc < x) {
             if (jacobi == -1) printf ("Calculating %ld", x); else printf ("Calculating %ld", x+1);
-            printf (" modular squaring iterations from base ");
-            mpz_out_str (stdout, 10, GMPbase);
-            printf (":\n");
+            printf (" modular squaring iterations from base %lu:\n", mpz_get_ui (GMPbase));
             if (exp > 36 && (interim || all_int)) printf ("Interim residues:                       |      Selfridge - Hurwitz residues\nIteration              mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1\n");
         }
 
@@ -1275,7 +1388,6 @@ int main (int argc, char **argv) {
         if (jacobi == -1 || debug || interim || all_int) { // if jacobi is not -1, we do *not* have a valid Pepin test base (but we may still be able to do a Suyama test)
             if (exp > 36 && !interim && !all_int) {
                 printf ("                                        |      Selfridge - Hurwitz residues\n                       mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1\n");
-                y = m;
             }
             if (m == 0 || jacobi != -1) print_residues (P, binary, SH, "Penultimate"); else print_residues (P, binary, m, "Pepin");
             if (super_verbose || (verbose && m > 0 && m < 12)) {
@@ -1288,7 +1400,7 @@ int main (int argc, char **argv) {
 
         if (mpz_cmp (P, Fm1) == 0 || mpz_cmp_ui (P, 1L) == 0) z = 1;
         if (z == 1 && m > 0) {
-            if (jacobi == -1) symb = ""; else if (k == 2 && k_fact > 0) symb = " (probably not***)"; else symb = " (probably)";
+            if (jacobi == -1) symb = ""; else if (l == 2 && k_fact > 0) symb = " (probably not***)"; else symb = " (probably)";
             printf ("\nF%d is%s prime!\n", m, symb);
             z = 1; prp = 1; // prp keeps track of whether we have printed a statement of primality or prp
         } else if (m != 0) {
@@ -1300,7 +1412,7 @@ int main (int argc, char **argv) {
                     mpz_mul_2exp (B, S, x);             // B = 2^(2^m - 1)
                     mpz_sub (tmp, kfac[i], S);          // tmp = p - 1
                     mpz_tdiv_r (S, B, tmp);             // S = 2^(2^m - 1) (mod p - 1)
-                    mpz_powm (B, GMPbase, S, kfac[i]);     // B = b^S (mod p)
+                    mpz_powm (B, GMPbase, S, kfac[i]);  // B = b^S (mod p)
                     if (mpz_cmp (A, B) == 0) {
                         printf ("\nP%d == ", m);
                         mpz_out_str (stdout, 10, GMPbase);
@@ -1335,6 +1447,10 @@ int main (int argc, char **argv) {
             if (debug) {print_residues (A_proof, binary, SH, "  A proof  ");}
                 exit (1);
             }
+            if (debug) {printf ("Call to validate.c:\n"); fflush(stdout);}
+            i = verify (proof_file_name, verbose || debug);
+            if (debug) printf ("Return from validate = %d\n", i);
+            if (i > fft_length) fft_length = i;
         }
 
         gwfree (&gwdata, r_gw);                 // Free the GW number: GW docs do not make it clear when this is needed
@@ -1392,7 +1508,7 @@ int main (int argc, char **argv) {
         mpz_mul_2exp (B, S, exp);               // B = 2^2^m
         mpz_sub (tmp, kfac[i], S);              // tmp = p - 1
         mpz_tdiv_r (S, B, tmp);                 // S == 2^2^m (mod p - 1)
-        mpz_powm (B, GMPbase, S, kfac[i]);         // B == b^S (mod p), which should == A
+        mpz_powm (B, GMPbase, S, kfac[i]);      // B == b^S (mod p), which should == A
         if ((use_proof_res || jacobi != -1 || verbose) && mpz_cmp (P, B) == 0) {
             printf ("A == ");
             mpz_out_str (stdout, 10, GMPbase);
@@ -1447,10 +1563,10 @@ int main (int argc, char **argv) {
     }
     if (m == 0) {
         printf ("M%lu is ", exp);
-        if (mpz_cmp_ui (A, 1L) == 0) printf ("(probably) prime!\n\n"); else printf ("composite.\n\n");
+        if (mpz_cmp_ui (A, 1L) == 0) printf ("(probably) prime!\n\n"); else {printf ("composite.\n\n"); z = 0;}
     } else if (jacobi != -1 && prp == 0) {
         printf ("F%d is ", m);
-        if (mpz_cmp_ui (A, 1L) == 0) printf ("(probably) prime!\n\n"); else printf ("composite.\n\n");
+        if (mpz_cmp_ui (A, 1L) == 0) printf ("(probably) prime!\n\n"); else {printf ("composite.\n\n"); z = 0;}
     }
 
     // If known factors were provided perform the Suyama test to determine whether the remaining cofactor C is prime or composite
