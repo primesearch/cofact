@@ -12,17 +12,18 @@ If known factors are given, then the cofactor is likewise tested for probable pr
 * Copy of the Prime95/mprime source, including the `gwnum` large number library. 
 
 ## Installation
-Unzip the `cofact` download as a directory  within the Prime95 source library directory `gwnum`, 
-as `cofact` uses several files at the higher directory hierachies of the Prime95 source. First, 
-run the `gwnum` make file for your platform, e.g. for macOS:
+You should either unzip the `cofact` download as a directory  within the Prime95 source library 
+directory `gwnum`, or run `git clone` in that directory, as `cofact` uses a number of files from 
+the Prime95 source. First, run the `gwnum` makefile for your platform, e.g. for \[macOS|Linux|Win\]:
 ```bash
-cd p95v3019b17/gwnum; make -f makemac
+cd p95v3019b17/gwnum; make -f [makemac|make64|makemw64]
 ```
 Then for `cofact`:
 ```bash
-cd cofact; make
+git clone --branch cxc https://github.com/primesearch/cofact.git
+cd cofact; bash cmake.sh
 ```
-Install by simply copying cofact to your usual directory for binaries.
+Finish the installation by copying the `cofact` executable to your usual directory for binaries.
 ### Basic operation
 To test a Fermat number, type `cofact` followed by an exponent (a non-negative integer up to 30), 
 optionally followed by any factors of that Fermat number. For instance, to test the fifth Fermat 
@@ -30,19 +31,19 @@ number $F_5$ and the factor $641$:
 ```bash
 cofact 5 641
 ```
-The `cofact` distribution includes a verifiable delay function (VDF) proof for a middling Fermat 
-number $F_{17}$, so to check the file has a correct value stored, type:
+The `cofact` distribution includes a verifiable delay function (VDF) proof for a small Fermat 
+number $F_{14}$, so to check the file has a correct value stored, type:
 ```bash
-cofact -cpr F17.proof 17
+cofact -cpr F14.proof 14
 ```
-This computes a primality test for $F_{17}$ and compares the result with the proof file. If you are 
+This computes a primality test for $F_{14}$ and compares the result with the proof file. If you are 
 satisfied you have a valid proof file the check may be skipped; to proceed directly to test the 
 cofactor, by supplying known factors, type:
 ```bash
-cofact -upr F17.proof 17 31065037602817 7751061099802522589358967058392886922693580423169
+cofact -upr F14.proof 14 116928085873074369829035993834596371340386703423373313
 ```
 You may check or use any proof file with or without factors.
-## Command line options
+## Basic command line options
 The initial command line options have burgeoned since version 0.6. The basic options are:
 
 Command line option | Function
@@ -57,10 +58,14 @@ Command line option | Function
 The full set of menu options available in later versions are discussed [below](#full-list-of-features--command-line-options).
 
 ## Authors
-Gary B. Gostin, versions 0.2 to 0.8.1
+Gary B. Gostin, versions 0.2 to 0.8.1 (the original, `main` branch)
 
-Catherine X. Cowie, versions 0.7 to 0.9
+Catherine X. Cowie, versions 0.6 to 0.9 (the `cxc` branch)
 
+Using `git` you may switch between the two versions, prior to the build instructions above:
+```bash
+cd cofact; git switch [main|cxc]
+```
 ## Copyright
 This program is © 2023–2024 Gostin and Cowie under the Creative Commons Zero (CC-0) licence, we 
 will not be responsible for whether you find this work useful, or whether it opens a portal to 
@@ -72,26 +77,26 @@ with permission. All rights reserved.
 The GMP library is © 1991, 1993–2016, 2018–2024 Free Software Foundation, Inc.
 
 ## Mathematics
-The Fermat numbers have the form $2^{2^m} +1$, $m \ge 0$, and the Mersenne numbers have the form 
+The Fermat numbers have the form $2^{2^m}+1$, $m \ge 0$, and the Mersenne numbers have the form 
 $2^p - 1$, where $p$ is a prime number. The five smallest Fermat numbers are prime, and of the 
-first ten million prime numbers, 51 prime exponents _p_ are currently known to give rise to a 
+first ten million prime numbers, 51 prime exponents $p$ are currently known to give rise to a 
 Mersenne prime. This utility can run a primality or probable primality test on any of these 
 numbers in such a way that the test allows further testing of the cofactor, if the Fermat or 
 Mersenne number is composite and has one or more known factors.
 
-The limit of this sort of testing is reached around $F_{30}$ for the Fermat numbers and 
-$M_{1,073,741,789}$ for Mersenne numbers.
+The practical computational limit for this sort of testing is reached around $F_{30}$ for Fermat 
+numbers, and $M_{1,073,741,789}$ for Mersenne numbers.
 
 If $F$ is a Fermat number, we are interested in obtaining the result $P$ of a Pépin test, where 
-$P \equiv b^{\frac 1 2 (F - 1)}$ (mod $F$) $\equiv -1$ (mod $F$) if and only if $F$ is prime. 
-Since $F = 2^{2^m} + 1$ is the result of $m$ squarings of the number $2$ and adding $1$, $P$ may 
-be obtained by squaring the base $2^m-1$ times, modulo $F$. Pépin’s theorem is a definitive 
-primality test for bases such as 3, 5, 6, and so on. One further squaring follows to prepare for 
-the cofactor test below.
+$P \equiv b^{\frac 1 2 (F - 1)} \equiv -1$ (mod $F$) if and only if $F$ is prime. Since 
+$F = 2^{2^m} + 1$ is the result of $m$ squarings of the number $2$ and adding $1$, $P$ may be 
+obtained by $2^m-1$ squarings of the base $b$, modulo $F$. Pépin’s theorem is a definitive 
+primality test for bases such as 3, 5, 6, and so on. One further squaring then follows to prepare 
+for the cofactor test below.
 
-A similar test for Mersenne numbers is not definitive (a different test, the Lucas–Lehmer test is 
+A similar test for Mersenne numbers is _not_ definitive (a different test, the Lucas–Lehmer test is 
 used for that) but serves to determine whether the Mersenne number is _probably_ prime, which is 
-sufficient for our purposes. Here, $R \equiv b^{M - 1}$ (mod $M$) $\equiv 1$ (mod $M$) is used to 
+sufficient for our purposes. Here, $R \equiv b^{M - 1} \equiv 1$ (mod $M$) is used to 
 establish probable primality, using Fermat’s little theorem. Since $M = 2^p - 1$, evaluating $R$ 
 requires $p$ squarings of the base $b$ followed by a modular division of $b^2$ to reach the 
 Fermat-PRP result, also described as value $A$ of the cofactor test, which was devised by Hiromi 
@@ -105,7 +110,7 @@ $A \equiv b^{2^{p}-2}$ (mod $M$), we also calculate $B \equiv b^{Q-1}$ modulo $F
 respectively; this then allows a comparison by simple subtraction, modulo the cofactor. If 
 $$A - B \equiv 0\ (\text{mod}\ C)$$
 then the cofactor is probably prime to the base $b^Q$; otherwise it is composite. Taking the 
-greatest common divisor $\textrm{gcd}(A - B, C)$ also tests whether the cofactor is a 
+greatest common divisor $\text{gcd}(A - B, C)$ also tests whether the cofactor is a 
 prime power, divisible by the gcd.
 
 ## Computation
@@ -114,21 +119,22 @@ library, however for the heavy lifting of modular squarings required by the Pép
 Fermat-PRP test, the `gwnum` library provides better, multi-threaded performance. `cofact` 
 does not save interim results however, so for any Mersenne exponent greater than a million, 
 a dedicated piece of software such as Prime95 or GPUowl will provide save and restart 
-functionality, and may generate a proof which cofact can then utilise.
+functionality, and may generate a proof which cofact can then utilise whenever new factors
+are discovered.
 
 ## Full list of features / command line options
 
 Long command line options use the same format for the parameter, if one is required (usually a filename, number, or string).
 
-Short option   | Long option          | Function
+Short option   | Long option          | Function
 ---------------|----------------------|---------
 -a             |--all-residues        | Print residues for every modular squaring.
 -b             |--binary              | Output final residues in binary.
--c _filename_  |--check-proof         | Check a VDF proof by computing the Fermat-PRP/Suyama A residue.
+-c _filename_  |--check-proof         | Check a VDF proof by computing the Fermat-PRP/Suyama $A$ residue for direct comparison. (This can be lengthy for large exponents; most often you will want to use `-u` or `--use-proof` below.)
 -d             |--debug               | Print debug information.
--h             |--help                | Print basic help (-hv and -h -sv are increasingly verbose).
+-h             |--help                | Print basic help (`-hv` and `-h -sv` are increasingly verbose).
 -i             |--interim-residues    | Print interim residues at various points.
--j             |--report-json         | Print a `JSON` report string for a Mersenne cofactor test. User and computer names can be entered into the string (see `-w` and `-q`).
+-j             |--report-json         | Print a `JSON` report string for a Mersenne cofactor test, to allow submission of cofactor results. PrimeNet user and computer names may be entered into the string (see `-w` and `-q`). If a proof file is used, it will be verified to ensure the final residue can be correctly generated from the file.
 -k             |--known-factors       | Use known factors of Fermat numbers (as of 2012) in place of supplying them after the exponent.
 -m             |--mod-c               | Reduce Suyama $A$ and $B$ values, modulo $C$ and print residues.
 -o             |--octal               | Print Selfridge–Hurwitz residues in octal as well as decimal.
