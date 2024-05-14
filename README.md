@@ -121,10 +121,29 @@ does not save interim results however, so for any Mersenne exponent greater than
 a dedicated piece of software such as Prime95 or GPUowl will provide save and restart 
 functionality, and may generate a proof which cofact can then utilise whenever new factors
 are discovered.
+### Proof files
+Prime95 is capable of generating verifiable delay function proof files for any Mersenne 
+exponent larger than $105,000$ (though the source code readily permits files to be generated 
+for smaller exponents if desired). For Fermat exponents, proof files have been furnished for 
+$F_{14}$ up to $F_{29}$, available from the co-author’s [website](https://64ordle.au/fermat/). 
+If you wish to use Prime95 to generate a proof for $F_{30}$, we would be [most interested](https://www.mersenneforum.org/showthread.php?t=22668&page=6)
+in knowing about it.
+### Residues
+The default output prints a hexadecimal residue modulo $2^{64}$, along with the triplet of 
+smaller residues devised by Alexander Hurwitz and John Selfridge in 1964, which by default 
+are given in decimal. Historical references or more modern software may reproduce these as 
+octal or hexadecimal, both of which are supported (by `-o` and `-x`). A variety of options 
+are available for printing interim residues while the program is computing the primality or 
+PRP test, or the Suyama test (the `-i`, `-p`, and `-v` options may be of use).
 
+The JSON reporting option for Mersenne numbers also includes the lower two kilobits of the 
+residue as hexadecimal (modulo $2^{2,048}$).
 ## Full list of features / command line options
 
-Long command line options use the same format for the parameter, if one is required (usually a filename, number, or string).
+Long command line options use the same format for the parameter, if one is required (usually 
+a filename, number, or string). The short, single-letter options may be combined in one flag, 
+e.g. `-imo`, to enable multiple options `-i`, `-m`, and `-o`, but only one such option with 
+a trailing parameter is permitted per flag.
 
 Short option   | Long option          | Function
 ---------------|----------------------|---------
@@ -138,7 +157,7 @@ Short option   | Long option          | Function
 -k             |--known-factors       | Use known factors of Fermat numbers (as of 2012) in place of supplying them after the exponent.
 -m             |--mod-c               | Reduce Suyama $A$ and $B$ values, modulo $C$ and print residues.
 -o             |--octal               | Print Selfridge–Hurwitz residues in octal as well as decimal.
--p _iterations_|--iterations          | Display progress every _iterations_ modular squarings (the default is 10% of the total run).
+-p _iterations_|--iterations          | Display progress every _iterations_ modular squarings (the default is 10% of a total run in excess of 100,000). If `-i` is also specified, residues will be printed at each progress point.
 -q _string_    |--computer            | Supplies a PrimeNet computer name for reporting results (see `-j`).
 -sep           |--separator           | Draw a horizontal line after a test.
 -t _threads_   |--threads             | Use multi-threaded `gwnum` by specifying the number of _threads_ (the default is single-threaded).
