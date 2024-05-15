@@ -161,13 +161,13 @@ uint64_t nextprime48 (uint64_t r) {
 // forward to iteration topK.  If the result matches B, then the user PRP test result was misreported.
 
 //int main (int argc, char** argv)
-int verify (char *filename, int verbose)
+int verify (char *filename, int verbose, gwhandle gwdata)
 {
 	FILE	*fd;
 	int	version, i, power, power_mult, prp_base, hashlen, excess_squarings, isPRP, retcode, topK, T, pm;
 	uint64_t h, r;
 	hash256_t rooth, *prevh, thish;
-	gwhandle gwdata;
+//	gwhandle gwdata;
 	gwnum	A, B, M, next_starting_A, saved_output_A, saved_output_B;
 	hash256_t hashA, hashB;
 	mpz_t	mpz_known_factors;
