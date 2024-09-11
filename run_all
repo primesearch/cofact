@@ -1,0 +1,45 @@
+# Run cofact on each Fermat number using the best method for that number, "best" meaning reasonably fast.
+# This run should take about five hours on a 16 core processor.
+# This script assumes that mprime has already generated proof files for F17 to F29.
+
+# For F0 - F16, mprime does not generate proof files. So just have cofact perform the Pepin and Suyama tests.
+
+cofact -sep 0
+cofact -sep 1
+cofact -sep 2
+cofact -sep 3
+cofact -sep 4
+cofact -sep 5 641
+cofact -sep 6 274177
+cofact -sep 7 59649589127497217
+cofact -sep 8 1238926361552897
+cofact -sep 9 2424833 7455602825647884208337395736200454918783366342657
+cofact -sep 10 45592577 6487031809 4659775785220018543264560743076778192897
+cofact -sep 11 319489 974849 167988556341760475137 3560841906445833920513
+cofact -sep 12 114689 26017793 63766529 190274191361 1256132134125569 568630647535356955169033410940867804839360742060818433
+cofact -sep 13 2710954639361 2663848877152141313 3603109844542291969 319546020820551643220672513
+cofact -sep 14 116928085873074369829035993834596371340386703423373313
+cofact -sep 15 1214251009 2327042503868417 168768817029516972383024127016961
+cofact -sep 16 825753601 188981757975021318420037633 
+
+# For F17 - F24, cofact is fairly fast. So have it perform the Pepin and Suyama tests and then check the mprime proof file A residue.
+
+cofact -sep -cpr F17.proof 17 31065037602817 7751061099802522589358967058392886922693580423169
+cofact -sep -cpr F18.proof 18 13631489 81274690703860512587777
+cofact -sep -cpr F19.proof 19 70525124609 646730219521 37590055514133754286524446080499713
+cofact -sep -cpr F20.proof 20
+cofact -sep -cpr F21.proof -t 8 21 4485296422913
+cofact -sep -cpr F22.proof -t 8 22 64658705994591851009055774868504577
+cofact -sep -cpr F23.proof -t 16 23 167772161
+cofact -sep -cpr F24.proof -t 16 24
+
+# For F25 - F30, mprime is much faster than cofact. So have cofact use the A residue from the mprime proof file and perform the Suyama test.
+# In this mode, the gwnum library is not used. So specifying multiple threads would have no affect.
+
+cofact -sep -upr F25.proof 25 25991531462657 204393464266227713 2170072644496392193
+cofact -sep -upr F26.proof 26 76861124116481
+cofact -sep -upr F27.proof 27 151413703311361 231292694251438081
+cofact -sep -upr F28.proof 28 1766730974551267606529
+cofact -sep -upr F29.proof 29 2405286912458753
+# cofact -sep -upr F30.proof 30 640126220763137 1095981164658689			F30 proof file not generated yet; mprime requires AVX 512 for this
+

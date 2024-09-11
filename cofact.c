@@ -8,7 +8,7 @@
  *   Suyama cofactor test:
  *	A = R^2 mod F = 3^(F-1) mod F		Prime95/mprime type 5 residue
  *	B = 2^(P-1) mod F
- *	R = (A - B) mod C			C is prime iff R == 0
+ *	R = (A - B) mod C			If R == 0 then C is a PRP else C is composite
  *	R = GCD (A-B, C)			C is a prime power iff R != 1
  *
  * cofact can be run in one of three modes:
@@ -39,7 +39,7 @@
 #define tv_msecs(tv) (tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0)
 
 const char *prog_name  = "cofact";
-const char *prog_vers  = "0.8.1";
+const char *prog_vers  = "0.8.2";
 const char *build_date = __DATE__;
 const char *build_time = __TIME__;
 
@@ -122,7 +122,7 @@ int main (int argc, char **argv) {
     char cmdline[CMD_LEN];		// The reconstructed command line
     char line[1024];			// Temp string
     int fermat_prime;			// Flag indicating the Fermat number is prime
-    int cofactor_prime;			// Flag indicating the Fermat number cofactor is prime
+    int cofactor_prp;			// Flag indicating the Fermat number cofactor is a PRP
     int argi, rtn, i, j;
 
     // Various time variables
@@ -590,7 +590,7 @@ int main (int argc, char **argv) {
 	gwdone (&gwdata);			// Free all GW data
     }
 
-    // If known factors were provided, perform the Suyama test to determine whether the remaining cofactor C is prime or composite
+    // If known factors were provided, perform the Suyama test to determine whether the remaining cofactor C is a PRP or composite
     if (n_fact > 0) {
 	printf ("Testing the F%d cofactor for primality using the following known factors: ", n);
 	for (i = 0; i < n_fact; i++) {
@@ -640,10 +640,10 @@ int main (int argc, char **argv) {
 	print_residues (R, "(A-B) mod C");
 
 	if (mpz_cmp_ui (R, 0L) == 0) {
-	    cofactor_prime = 1;
-	    printf ("F%d cofactor is prime!\n", n);
+	    cofactor_prp = 1;
+	    printf ("F%d cofactor is a probable prime!\n", n);
 	} else {
-	    cofactor_prime = 0;
+	    cofactor_prp = 0;
 
 	    // Test if the cofactor is a prime power
 	    mpz_sub (R, A, B);			// R = A - B
@@ -664,7 +664,7 @@ int main (int argc, char **argv) {
 	for (i = 0; i < n_fact; i++) {
 	    printf ("p%d * ", num_digits (fact[i]));
 	}
-    	if (cofactor_prime) {
+	if (cofactor_prp) {
 	    printf ("p%d\n\n", num_digits (C));
 	} else {
 	    printf ("c%d\n\n", num_digits (C));

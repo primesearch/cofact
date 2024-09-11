@@ -1,0 +1,11 @@
+# Create links to the mprime gwnum library files needed by cofact
+# Usage: link_gwnum <mprime root directory>
+
+rm -f giants.h gwcommon.h gwnum.a gwnum.h gwthread.h
+
+ln -s $1/gwnum/giants.h
+ln -s $1/gwnum/gwcommon.h
+ln -s $1/gwnum/gwnum.a
+ln -s $1/gwnum/gwnum.h
+ln -s $1/gwnum/gwthread.h
+
