@@ -258,7 +258,7 @@ int verify (char *filename, int verbose, gwhandle gwdata)
 		mpz_t	mpz_factor;
 		char	factor[2048];
 		sscanf (p, "/%2047[0-9]", &factor);
-		mpz_init_set_str (mpz_factor, p+1, 10);
+		mpz_init_set_str (mpz_factor, factor, 10);
 		mpz_mul (mpz_known_factors, mpz_known_factors, mpz_factor);
 		mpz_clear (mpz_factor);
 	}
@@ -688,7 +688,7 @@ int verify (char *filename, int verbose, gwhandle gwdata)
 #endif
 
 	if (verbose) printf ("Total server processing cost would be %d squarings\n", (int) ceil (gwdata.fft_count / 2.0));
-	if (verbose) printf ("Certification cost is %d squarings\n", T);
+	if (verbose || T > 50000) printf ("Certification cost is %d squarings\n", T);
 //	printf ("Total server processing cost would be %d squarings\n", (int) ceil (gwdata.fft_count / 2.0));
 //	printf ("Certification cost is %d squarings\n", T);
 
