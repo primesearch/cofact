@@ -403,7 +403,7 @@ int main (int argc, char **argv) {
     char cmdline[CMD_LEN];          // The reconstructed command line
     char line[2048];                // Temp string
     unsigned long y;
-    int argi, rtn, i, l, z;         // Use n next
+    int argi, rtn, i, l, n, z;      // Use q next
     char *symb;                     // A temporary string to display a single symbol or character
     char *flags;                    // Pointer for multiple flags in one argument; z if file location to follow
 
@@ -451,6 +451,9 @@ int main (int argc, char **argv) {
     int version, hashsize;          // VERSION and HASHSIZE values from the proof file
     char power_s[64];               // POWER string from the proof file
     char proof_desc_s[2048];        // The proof description string: (Fn)/factor_1/factor_2...
+    char factor_s[2048];            // All factors taken from proof description string
+    char* factor_p;                 // Pointer to factor_s
+    char* factor_t;                 // String token separated from factor_s
     char newline[2];                // Required to avoid the description fscanf from eating part of the residue
     int n_proof;                    // N of the Fermat number in the proof file
     int proof_power, proof_power_mult;  // Proof power and multiplier in the proof file
@@ -524,7 +527,7 @@ int main (int argc, char **argv) {
     threads = 1;            // Default to 1 thread
     fft_length = 0;
     proof_power = 0;
-    proof_power_mult = 0;   // Initialise these to 0 to avoid embarrassment later
+    proof_power_mult = 1;   // Initialise these to avoid embarrassment later
     
     // Parse command line arguments starting with "-" args
     // The following loop will exit when first non "-" argument is found that is not allowed for,
@@ -741,7 +744,6 @@ int main (int argc, char **argv) {
     }
     if (exp != 0) {     // If exp is not zero then m is a Mersenne exponent; we make m equal to zero to avoid confusion
         m = 0;
-        known_factors = 0;
         if (exp != 3 && exp != 5) { // Try Pomerance, Brillhart, and Wagstaff's strong pseudoprime test: Miller-Rabin for bases 2, 3, 5
             x = exp - 1;
             y = 0;
@@ -782,7 +784,6 @@ int main (int argc, char **argv) {
         }
     }
     k_fact = 0;
-    if (exp > 36) SH = 6; else SH = m;
 
     if (m > 0) { // Setup for Fermat numbers, including known factors
         if (debug) printf ("Calculate the Fermat number F%d = 2^(2^%d)+1 and F-1\n", m, m); fflush (stdout);
@@ -913,7 +914,7 @@ int main (int argc, char **argv) {
 */
             }
         }
-    } else {        // Set up F for Mersenne exponents; pre-programmed, known factors are unavailable
+    } else if (!known_factors) {        // Set up F for Mersenne exponents; known factors are unavailable (choose not to read them from proof)
         if (debug) printf ("Calculate the Mersenne number M%lu = 2^%lu-1 and M%lu - 1\n", exp, exp, exp); fflush (stdout);
         mpz_mul_2exp (F, F, exp);       // F   = 2^exp
         mpz_sub_ui (F, F, 1L);          // F   = 2^exp - 1
@@ -978,6 +979,13 @@ int main (int argc, char **argv) {
                     exit (1);
                 }
             }
+            if (known_factors) {
+                exp = n_proof;
+                if (debug) printf ("Calculate the Mersenne number M%lu = 2^%lu-1 and M%lu - 1\n", exp, exp, exp); fflush (stdout);
+                mpz_mul_2exp (F, F, exp);       // F   = 2^exp
+                mpz_sub_ui (F, F, 1L);          // F   = 2^exp - 1
+                mpz_sub_ui (Fm1, F, 1L);        // Fm1 = 2^exp - 2
+            }
         }
 
         // Allocate a buffer of 2^n / 8 bytes to store the raw A residue
@@ -986,6 +994,40 @@ int main (int argc, char **argv) {
         if ((A_proof_raw = calloc (res_len+1, sizeof (unsigned char))) == NULL) {
             printf ("Error: Unable to allocate buffer for proof file residue\n");
             exit (1);
+        }
+
+        // Read factors from remainder of M or (M) string
+        if (m == 0) {
+            n_fact = 0;
+            if (sscanf (proof_desc_s, "M%d/%s", &n_proof, &factor_s) != 2) {
+                if (sscanf (proof_desc_s, "(M%d)/%s", &n_proof, &factor_s) != 2){
+                    known_factors = 0;
+                } else if (debug) printf ("Factors string for (M%d): %s\n", n_proof, factor_s);
+            } else if (debug) printf ("Factors string: %s\n", factor_s);
+            if (known_factors && debug) printf ("String length: %lu\n", strlen(factor_s));
+            if (known_factors && strlen(factor_s) > 0) {
+                flags = strpbrk(factor_s, "/");
+                if (flags == NULL) {
+                    mpz_set_str (fact[n_fact], factor_s, 10);
+                    n_fact++;
+                } else {//          Scan through string for factors separated by /
+                    factor_p = strdup(factor_s);
+                    while ((factor_t = strsep (&factor_p, "/")) != NULL) {
+                        if (*factor_t == '\0') {
+                            printf ("Null token in proof string!\nConsider not using -k to obtain factors in proof description string:\n%s\n", proof_desc_s);
+                        } else {
+                            if (debug) printf ("Factor %d: %s\n", n_fact+1, factor_t);
+                            fflush (stdout);
+                            mpz_set_str (fact[n_fact], factor_t, 10);
+                            n_fact++;
+                        }
+                    }
+                }
+                if (n_fact == 1) symb = ""; else symb = "s";
+                printf ("%d factor%s imported from proof description\n", n_fact, symb);
+                
+            }
+            known_factors = 0;          // We now have factors loaded into fact[]
         }
 
         // Parse the Proof Power from the proof file. Supported formats are "#" and "#x2".
@@ -1033,6 +1075,8 @@ int main (int argc, char **argv) {
         printf ("\n");
     }
 
+    if (exp > 36) SH = 6; else SH = m;
+
     // Check the base chosen is useable
     jacobi = 0;
     if (m != 0) jacobi = mpz_jacobi (B, F);
@@ -1070,7 +1114,7 @@ int main (int argc, char **argv) {
         exit (1);
     }
 
-    n_fact = 0;     // Initialise the expected number of factors to test after Pepin or Fermat-PRP test
+    if (mpz_cmp_ui (fact[0], 1L) == 0) n_fact = 0;      // Initialise the expected number of factors to test after Pepin or Fermat-PRP test
     for (i = 0; i < k_fact; i++) {kpow[i] = 0;}
     if (known_factors && mpz_cmp_ui (kfac[0], 1L) != 0) {
         n_fact = k_fact;
@@ -1089,7 +1133,10 @@ int main (int argc, char **argv) {
     }
     z = 0;
     if (debug) printf("k_fact = %d, n_fact = %d, argi = %d\n", k_fact, n_fact, argi);
-    for (i = k_fact*known_factors; i < n_fact; i++) {
+    for (n = 0; n < N_FACT; n++) {
+        if (mpz_cmp_ui (fact[n], 1L) == 0) break;
+    }
+    for (i = k_fact*known_factors+n; i < n_fact; i++) {
         if (mpz_set_str(fact[i-z], argv[argi], 10) != 0) {
             printf ("Error: cannot parse factor: %s (continuing without it)\n", argv[argi]);
             z++;
@@ -1480,14 +1527,14 @@ int main (int argc, char **argv) {
         gwdone (&gwdata);                       // Free all GW data
     }
     if (m == 0) { // If we have a Mersenne exponent we also need to perform a modular division by the square of the base
-        if (debug) {print_residues (B, binary, SH, " Undivided ");}
+        if (debug) {print_residues (A, binary, SH, " Undivided ");}
         mpz_mul (S, GMPbase, GMPbase);
         x = mpz_invert (tmp, S, F);
         if (x == 0) {
             printf ("Error: no modular inverse for square of base\n");  // Hopefully we never need to use this code
-            mpz_tdiv_r (tmp, B, S);                                     // if you ever see this error, and exp is prime,
+            mpz_tdiv_r (tmp, A, S);                                     // if you ever see this error, and exp is prime,
             if (mpz_cmp_ui (tmp, 0L) == 0) {                            // please let CXC know
-                mpz_div (A, B, S);
+                mpz_div (A, A, S);
                 if (use_proof_res) symb = "Suyama A residue from proof"; else symb = "Square of penultimate residue";
                 printf ("%s trivially divisible by %lu\n", symb, mpz_get_ui (S));
             } else {
@@ -1524,7 +1571,7 @@ int main (int argc, char **argv) {
     }
 
     if (k_fact > 0 && use_proof_res) printf ("Gerbicz check of proof residue:\n");  // Gerbicz sanity check, if there are known factors
-    if ((k_fact > 0 && jacobi != -1) || (m == 0 && n_fact > 0)) printf ("Gerbicz check of Fermat-PRP residue:\n");
+    if ((k_fact > 0 && jacobi != -1) || (m == 0 && n_fact > 0 && n_comp != 1)) printf ("Gerbicz check of Fermat-PRP residue:\n");
     for (i = 0; i < k_fact; i++) {              // note, A == b^2^2^m mod F_m = b^(F_m - 1) mod F_m
         mpz_tdiv_r (P, A, kfac[i]);             // P == A (mod p), where p is a prime factor of F_m
         mpz_set_ui (S, 1L);
@@ -1580,7 +1627,7 @@ int main (int argc, char **argv) {
             }
         }
     }
-    if (k_fact > 0 || n_fact > 0) {
+    if (k_fact > 0 || (n_fact > 0 && n_comp != 1)) {
         if (use_proof_res) {symb = " from proof";} else if (jacobi == -1) {symb = " also";} else {symb = "";}
         printf ("Suyama A residue%s passes check.\n\n", symb);
     }
@@ -1717,26 +1764,31 @@ int main (int argc, char **argv) {
 fast_exit:
     current_time = time(NULL);
 
-    if (json && n_fact > 0) {
-        if (mpz_cmp_ui (Q, 0L) == 0) symb = "P"; else symb = "C";
+    if (json) {
+        if (mpz_cmp_ui (Q, 0L) == 0 || (mpz_cmp_ui (A, 1L) == 0 && n_fact == 0)) symb = "P"; else symb = "C";
         i = mpz_get_ui (GMPbase);
         mpz_and (r64, A, mask64);
         j = mpz_get_ui (r64);
         mpz_tdiv_r_2exp (tmp, A, 2048L);
-        printf ("Manual results JSON string: {\"status\":\"%s\", \"exponent\":%lu, \"worktype\":\"PRP-%d\", \"res64\":\"%016lX\", \"residue-type\":5, \"res2048\":\"", symb, exp, i, j);
+        printf ("Manual results JSON string:\n{\"status\":\"%s\", \"exponent\":%lu, \"worktype\":\"PRP-%d\", \"res64\":\"%016lX\", \"residue-type\":", symb, exp, i, j);
+        if (n_fact > 0) printf ("5"); else printf ("1");
+        printf (", \"res2048\":\"");
         mpz_out_str (stdout, 16, tmp);
         if (fft_length) printf ("\", \"fft-length\":%d", fft_length);
         time_block = gmtime(&current_time);
         strftime(time_string, TIME_STRING_LEN, "%Y-%m-%d %X", time_block);
-        printf (", \"shift-count\":0, \"error-code\":\"00000000\", \"program\":{\"name\":\"%s\", \"version\":\"%s\", \"port\":10}, \"timestamp\":\"%s\", \"known-factors\":[", prog_name, prog_vers, time_string);
-        for (i = 0; i < n_fact; i++) {
-            symb = "\"";
-            printf ("%s", symb);
-            mpz_out_str (stdout, 10, fact[i]);
-            if (i+1 < n_fact) symb = "\", ";
-            printf ("%s", symb);
+        printf ("\", \"shift-count\":0, \"error-code\":\"00000000\", \"program\":{\"name\":\"%s\", \"version\":\"%s\", \"port\":8}, \"timestamp\":\"%s\"", prog_name, prog_vers, time_string);
+        if (n_fact > 0) {
+            printf (", \"known-factors\":[");
+            for (i = 0; i < n_fact; i++) {
+                symb = "\"";
+                printf ("%s", symb);
+                mpz_out_str (stdout, 10, fact[i]);
+                if (i+1 < n_fact) symb = "\", ";
+                printf ("%s", symb);
+            }
+            printf ("]");
         }
-        printf ("]");
         if (who > 0) printf (", \"user\":\"%s\"", argv[who]); else printf (", \"user\":\"ANONYMOUS\"");
         if (computer > 0) printf (", \"computer\":\"%s\"", argv[computer]);
         printf ("}\n\n");
