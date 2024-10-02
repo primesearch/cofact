@@ -100,7 +100,8 @@ Complete `Mlucas` results of the Pépin tests starting with $F_{13}$ up to $F_{3
 test for each of those except for $F_{13}$, $F_{20}$, and $F_{24}$, have been 
 [repeated](https://www.mersenneforum.org/node/17112?p=889067#post889067), 
 and to meet the ideal of hardware and software-independent verification Wilfrid Keller and 
-Gary Gostin began a follow-up project to verify Mayer’s `Mlucas` results using Woltman’s `mprime`.
+Gary Gostin began a follow-up project to verify Mayer’s `Mlucas` results using Woltman’s `mprime`. 
+This motivated the creation of `cofact` by Gostin to augment the capabilities of `mprime`.
 
 `mprime` does not produce Selfridge–Hurwitz residues, however `cofact` uses mprime’s `gwnum` 
 maths library for running the Pépin test on Fermat numbers, and results including 
@@ -112,8 +113,8 @@ composite Fermat number from $F_{12}$ up to $F_{29}$, VDF proofs have been
 with `cofact`.
 
 With the exception of $F_{30}$, and the Selfridge–Hurwitz residues of Pépin tests of 
-$F_{28}$ and $F_{29}$, all of Mayer’s results obtained in 2013–22 using `Mlucas`, have been 
-replicated independently using `mprime` and `cofact`.
+$F_{27}$, $F_{28}$, and $F_{29}$, all of Mayer’s results obtained between 2013 and 2022 using `Mlucas`, 
+have been replicated independently using `mprime` and `cofact`.
 
 ## Mathematics
 The Fermat numbers have the form $2^{2^m}+1$, $m \ge 0$, and the Mersenne numbers have the form 
@@ -163,10 +164,15 @@ are discovered.
 ### Proof files
 Prime95 is capable of generating verifiable delay function proof files for any Mersenne 
 exponent larger than $105,000$ (though the source code readily permits files to be generated 
-for smaller exponents if desired). For Fermat exponents, proof files have been furnished for 
-$F_{14}$ up to $F_{29}$, available from the co-author’s [website](https://64ordle.au/fermat/). 
+for smaller exponents if desired). For Mersennes, the `-k` option allows `cofact` to read the 
+proof description included in a proof’s header to obtain the list of factors that were known 
+when the proof was created, if these were specified.
+
+For Fermat exponents, proof files have been furnished for almost all of the smaller Fermat 
+numbers that have yet to be fully factored (or factored at all), from $F_{12}$ up to $F_{29}$, 
+available for download from the co-author’s [website](https://64ordle.au/fermat/). 
 If you wish to use Prime95 to generate a proof for $F_{30}$, we would be 
-[most interested](https://www.mersenneforum.org/showthread.php?t=22668&page=6)
+[most interested](https://www.mersenneforum.org/node/17112/page3)
 in knowing about it.
 ### Residues
 The default output prints a hexadecimal residue modulo $2^{64}$, along with the triplet of 
@@ -187,13 +193,13 @@ a trailing parameter is permitted per flag.
 
 Short option   | Long option          | Function
 ---------------|----------------------|---------
--a             |--all-residues        | Print residues for every modular squaring.
+-a             |--all-residues        | Print residues for every modular squaring. (This is not recommended for large exponents.)
 -b             |--binary              | Output final residues in binary.
--c _filename_  |--check-proof         | Check a VDF proof by computing the Fermat-PRP/Suyama $A$ residue for direct comparison. (This can be lengthy for large exponents; most often you will want to use `-u` or `--use-proof` below.)
+-c _filename_  |--check-proof         | Check a VDF proof by computing the Fermat-PRP/Suyama $A$ residue for direct comparison. (This will be impractically lengthy for large exponents; most often you will want to use `-u` or `--use-proof` below.)
 -d             |--debug               | Print debug information.
 -h             |--help                | Print basic help (`-hv` and `-h -sv` are increasingly verbose).
 -i             |--interim-residues    | Print interim residues at various points.
--j             |--report-json         | Print a `JSON` report string for a Mersenne cofactor test, to allow submission of cofactor results. PrimeNet user and computer names may be entered into the string (see `-w` and `-q`). If a proof file is used, it will be verified to ensure the final residue can be correctly generated from the file.
+-j             |--report-json         | Print a `JSON` report string for a Mersenne cofactor test, to allow submission of cofactor results. PrimeNet user and computer names may be entered into the string (see `-w` and `-q`). If a proof file is used, it will be verified to ensure the final residue can be correctly generated from the file. Verification takes a fraction of time compared to the original computation.
 -k             |--known-factors       | Use known factors of Fermat numbers (as of 2012) in place of supplying them after the exponent. When testing a Mersenne number in combination with checking or using a VDF proof, `cofact` can read the proof file’s description to import any known factors saved in the file header.
 -m             |--mod-c               | Reduce Suyama $A$ and $B$ values, modulo $C$ and print residues.
 -o             |--octal               | Print Selfridge–Hurwitz residues in octal as well as decimal.
@@ -201,7 +207,7 @@ Short option   | Long option          | Function
 -q _string_    |--computer            | Supplies a PrimeNet computer name for reporting results (see `-j`).
 -sep           |--separator           | Draw a horizontal line after a test.
 -t _threads_   |--threads             | Use multi-threaded `gwnum` by specifying the number of _threads_ (the default is single-threaded).
--u _filename_  |--use-proof           | Use a VDF proof without double-checking the residue.
+-u _filename_  |--use-proof           | Use a VDF proof (without double-checking the residue by full computation) to run the Suyama test.
 -v             |--verbose             | Print verbose test information.
 -w _string_    |--user                | Supplies a PrimeNet username for reporting results (see `-j`).
 -x             |--hex or --hexadecimal| Print Selfridge–Hurwitz residues in hexadecimal as well as decimal.
