@@ -105,9 +105,9 @@ When running very long calculations such as testing a number for primality, one 
 to ensure accuracy is to perform the calculation twice using two different programs running 
 on two different computers, and then compare various calculation residues. This helps protect 
 against both program design errors and hardware errors. Historically, part of the process of 
-investigating untested Fermat numbers was to double-check previous Pépin test results obtained 
-by previous researchers, which helps verify that the mathematics involved in carrying out the 
-test is being correctly calculated.
+investigating untested Fermat numbers had been to double-check older Pépin test results obtained 
+by previous researchers, which helped verify that the mathematics involved in carrying out the 
+test had been correctly calculated, before starting afresh on an untested exponent.
 
 In 1999, Ernst Mayer (with Richard Crandall and Jason Papadopoulos) had run the Pépin test on 
 then-smallest known Fermat number lacking known factors and of unknown character, $F_{24}$, 
