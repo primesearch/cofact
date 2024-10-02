@@ -152,7 +152,7 @@ $P \equiv b^{\frac 1 2 (F - 1)} \equiv -1$ (mod $F$) if and only if $F$ is prime
 $F = 2^{2^m} + 1$ is the result of $m$ squarings of the number $2$ and adding $1$, $P$ may be 
 obtained by $2^m-1$ squarings of the base $b$, modulo $F$. Pépin’s theorem is a definitive 
 primality test for bases such as 3, 5, 6, and so on. One further modular squaring $A \equiv P^2$ 
-(mod$F$) then follows to prepare for the cofactor test below.
+(mod $F$) then follows to prepare for the cofactor test below.
 
 A similar test for Mersenne numbers is _not_ definitive (a different test, the Lucas–Lehmer test is 
 used for that) but serves to determine whether the Mersenne number is _probably_ prime, which is 
