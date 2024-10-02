@@ -62,7 +62,7 @@ Command line option | Function
 The full set of menu options available in later versions are discussed [below](#full-list-of-features--command-line-options).
 
 ## Authors
-Gary B. Gostin, versions 0.2 to 0.8.1 (the original, `main` branch)
+Gary B. Gostin, versions 0.1 to 0.8.2 (the original, `main` branch)
 
 Catherine X. Cowie, versions 0.6 to 0.9 (the `cxc` branch)
 
