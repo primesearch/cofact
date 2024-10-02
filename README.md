@@ -131,8 +131,8 @@ If $F$ is a Fermat number, we are interested in obtaining the result $P$ of a P�
 $P \equiv b^{\frac 1 2 (F - 1)} \equiv -1$ (mod $F$) if and only if $F$ is prime. Since 
 $F = 2^{2^m} + 1$ is the result of $m$ squarings of the number $2$ and adding $1$, $P$ may be 
 obtained by $2^m-1$ squarings of the base $b$, modulo $F$. Pépin’s theorem is a definitive 
-primality test for bases such as 3, 5, 6, and so on. One further squaring then follows to prepare 
-for the cofactor test below.
+primality test for bases such as 3, 5, 6, and so on. One further modular squaring $A \equiv P^2$ 
+(mod$F$) then follows to prepare for the cofactor test below.
 
 A similar test for Mersenne numbers is _not_ definitive (a different test, the Lucas–Lehmer test is 
 used for that) but serves to determine whether the Mersenne number is _probably_ prime, which is 
@@ -158,9 +158,9 @@ Most of the smaller calculations in `cofact` use the GNU Multiple Precision (GMP
 library, however for the heavy lifting of modular squarings required by the Pépin test or 
 Fermat-PRP test, the `gwnum` library provides better, multi-threaded performance. `cofact` 
 does not save interim results however, so for any Mersenne exponent greater than a million, 
-a dedicated piece of software such as Prime95 or GPUowl will provide save and restart 
-functionality, and may generate a proof which cofact can then utilise whenever new factors
-are discovered.
+a dedicated piece of software such as `Prime95` or `gpuOwl` will provide save and restart 
+functionality, and may generate a proof which `cofact` can then utilise to rerun the Suyama 
+test whenever new factors are discovered.
 ### Proof files
 Prime95 is capable of generating verifiable delay function proof files for any Mersenne 
 exponent larger than $105,000$ (though the source code readily permits files to be generated 
@@ -173,7 +173,7 @@ numbers that have yet to be fully factored (or factored at all), from $F_{12}$ u
 available for download from the co-author’s [website](https://64ordle.au/fermat/). 
 If you wish to use Prime95 to generate a proof for $F_{30}$, we would be 
 [most interested](https://www.mersenneforum.org/node/17112/page3)
-in knowing about it.
+in knowing about it (however it is not a task for the faint-hearted).
 ### Residues
 The default output prints a hexadecimal residue modulo $2^{64}$, along with the triplet of 
 smaller residues devised by Alexander Hurwitz and John Selfridge in 1964, which by default 
@@ -182,7 +182,7 @@ octal or hexadecimal, both of which are supported (by `-o` and `-x`). A variety 
 are available for printing interim residues while the program is computing the primality or 
 PRP test, or the Suyama test (the `-i`, `-p`, and `-v` options may be of use).
 
-The JSON reporting option for Mersenne numbers also includes the lower two kilobits of the 
+The JSON reporting option for Mersenne numbers `-j` also includes the lower two kilobits of the 
 residue as hexadecimal (modulo $2^{2,048}$).
 ## Full list of features / command line options
 
