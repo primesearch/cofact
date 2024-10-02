@@ -1,16 +1,16 @@
 # cofact
 
-cofact is a companion program for the mprime / Prime95 program created by George Woltman. mprime and cofact can be used together in several ways to test a small Fermat number for primality using Pepin's test and, if known factors are provided, to test the Fermat cofactor for probable primality using the Suyama test. cofact reports the RES64 and Selfridge-Hurwitz residues for the final residue of Pepin's test and for each step of the Suyama test to enable comparison with the residues reported by other programs.
+cofact is a companion program for the mprime / Prime95 program created by George Woltman. mprime and cofact can be used together in several ways to test a small Fermat number for primality using Pépin's test and, if known factors are provided, to test the Fermat cofactor for probable primality using the Suyama test. cofact reports the RES64 and Selfridge-Hurwitz residues for the final residue of Pépin's test and for each step of the Suyama test to enable comparison with the residues reported by other programs.
 
 Starting in cofact version 0.9, cofact can perform the same tests on a small Mersenne number and the Mersenne cofactor.
 
-## Motivation and History
+## History and Motivation
 
 When running very long calculations such as testing a number for primality, one approach to ensure accuracy is to perform the calculation twice using two different programs running on two different computers and then compare various calculation residues. This helps protect against both program design errors and hardware errors.
 
-Starting in 2013, Ernst Mayer added the ability to his Mlucas program to test a Fermat number for primality using Pepin's test, saving the final Pepin residue to a file. Then, if the Fermat number has known factors, Mlucas can use the final Pepin residue to test the Fermat cofactor for probable primality using the Suyama test. From 2013 to 2022, Ernst tested each of the Fermat numbers from $F_{25}$ through $F_{30}$ for primality, a huge effort particularly for $F_{30}$. Once complete, he ran the Suyama test on each of the Fermat cofactors, proving each of them to be composite. For each Fermat number, Mlucas reported the RES64 residue and the Selfridge-Hurwitz residues (see Residues below) for the final Pepin residue and for each step of the Suyama test: A, B and (A-B) mod C (see Mathematics below).
+Starting in 2013, Ernst Mayer added the ability to his Mlucas program to test a Fermat number for primality using Pépin's test, saving the final Pépin residue to a file. Then, if the Fermat number has known factors, Mlucas can use the final Pépin residue to test the Fermat cofactor for probable primality using the Suyama test. From 2013 to 2022, Ernst tested each of the Fermat numbers from $F_{25}$ through $F_{30}$ for primality, a huge effort particularly for $F_{30}$. Once complete, he ran the Suyama test on each of the Fermat cofactors, proving each of them to be composite. For each Fermat number, Mlucas reported the RES64 residue and the Selfridge-Hurwitz residues (see Residues below) for the final Pépin residue and for each step of the Suyama test: A, B and (A-B) mod C (see Mathematics below).
 
-Similar to Mlucas, mprime / Prime95 has the ability to test a Fermat cofactor for primality using the Pepin and Suyama tests. Unlike Mlucas, mprime reports only the RES64 residue for the Suyama A step. So it was not possible with mprime alone to verify all the residues reported by Mlucas. Fortunately, mprime stores the full Suyama A step residue in the generated proof file. So, to verify all of the Mlucas residues, cofact was created to read the full Suyama A residue from the mprime proof file, perform the Suyama test, and then report all the same residues as Mlucas. As of November 2023, mprime + cofact have been used to verify all Mlucas Suyama residues for $F_{21}$ through $F_{23}$ and $F_{25}$ through $F_{29}$.
+Similar to Mlucas, mprime / Prime95 has the ability to test a Fermat cofactor for primality using the Pépin and Suyama tests. Unlike Mlucas, mprime reports only the RES64 residue for the Suyama A step. So it was not possible with mprime alone to verify all the residues reported by Mlucas. Fortunately, mprime stores the full Suyama A step residue in the generated proof file. So, to verify all of the Mlucas residues, cofact was created to read the full Suyama A residue from the mprime proof file, perform the Suyama test, and then report all the same residues as Mlucas. As of November 2023, mprime + cofact have been used to verify all Mlucas Suyama residues for $F_{21}$ through $F_{23}$ and $F_{25}$ through $F_{29}$.
 
 ## Repository Branches
 There are two permanent branches in this cofact repository:
@@ -25,7 +25,7 @@ The remainder of this README.md file will document the "main" branch. For the "c
 
 
 ## Requirements
-* Intel or compatible x86-family processor. AVX-512 is required to perform Pepin's test on $F_{30}$.
+* Intel or compatible x86-family processor. AVX-512 is required to perform Pépin's test on $F_{30}$.
 * GNU Multiple Precision Arithmetic Library.
 * The mprime/Prime95 source code, including the `gwnum` large number library.
 
@@ -56,7 +56,7 @@ make
 
 cofact can be run in one of three modes:
 
-1. Test a Fermat number for primality using Pepin's test. Then, if known factors are provided, use the Pepin residue to perform the Suyama probable primality (PRP) test on the cofactor. This mode is selected if neither -cpr or -upr are specified on the command line.
+1. Test a Fermat number for primality using Pépin's test. Then, if known factors are provided, use the Pépin residue to perform the Suyama probable primality (PRP) test on the cofactor. This mode is selected if neither -cpr or -upr are specified on the command line.
 2. Perform all steps in mode 1. Also compare the Suyama A residue calculated by cofact to the A residue read from the proof file generated by mprime when testing the same cofactor. This mode is selected via -cpr on the command line.
 3. Read the Suyama A residue for a Fermat number from the mprime proof file (assumes it is correct), then perform the Suyama PRP test on the cofactor. This mode is selected via -upr on the command line.
 
@@ -70,13 +70,13 @@ Mode 2 can be used to verify the Suyama A residue stored in a verifiable delay f
 ```bash
 cofact -cpr F14.proof 14
 ```
-This performs a Pepin primality test for $F_{14}$, then calculates the Suyama A residue and compares it with the residue stored in the proof file. If no residue mismatch is reported, then the proof file has a valid residue. You may check any proof file with or without specifying factors.
+This performs a Pépin primality test for $F_{14}$, then calculates the Suyama A residue and compares it with the residue stored in the proof file. If no residue mismatch is reported, then the proof file has a valid residue. You may check any proof file with or without specifying factors.
 
 Mode 3 can be used to test a Fermat cofactor using the Suyama A residue stored in the corresponding proof file. For example, to test the $F_{14}$ cofactor using the $F_{14}$ proof file, type:
 ```bash
 cofact -upr F14.proof 14 116928085873074369829035993834596371340386703423373313
 ```
-Mode 3 avoids the lengthy Pepin calculation, allowing a cofactor to be tested in a matter of minutes even for Fermat numbers as large as $F_{29}$. To enable yourself to test the resulting cofactor after the next factor of $F_{14}$ through $F_{29}$ is discovered, download the $F_{14}$ through $F_{29}$ proof files from Catherine's excellent [website](https://64ordle.au/fermat/).
+Mode 3 avoids the lengthy Pépin calculation, allowing a cofactor to be tested in a matter of minutes even for Fermat numbers as large as $F_{29}$. To enable yourself to test the resulting cofactor after the next factor of $F_{14}$ through $F_{29}$ is discovered, download the $F_{14}$ through $F_{29}$ proof files from Catherine's excellent [website](https://64ordle.au/fermat/).
 
 The cofact distribution includes a script called `run_all` that will run cofact on each Fermat number from $F_0$ through $F_{29}$ using the best method for that number, with "best" meaning reasonably fast. Before running the script, download proof files for $F_{17}$ through $F_{29}$ into the same directory as cofact.
 
@@ -112,14 +112,14 @@ A Fermat number is an integer of the form $2^{2^n}+1$, where $n \ge 0$. The five
 A Fermat cofactor is the integer $F_n / P$, where $P$ is the product of all known factors of $F_n$.
 
 ### Pépin's test
-Pépin's test is a definitive primality test that can be used to determine if a Fermat number is prime. If $F_n$ is the $n^{th}$ Fermat number, then $F_n$ is prime if and only if $3^{(F_n - 1)/2} \equiv -1$ (mod $F$). The term $3^{(F_n - 1)/2}$ (mod $F$) may be calculated by $2^n-1$ squarings of the base $3$, modulo $F_n$. Pépin’s test is also a definitive primality test when performed with bases other than 3, such as 5, 6, and so on.
+Pépin's test is a definitive primality test that can be used to determine if a Fermat number is prime. If $F_n$ is the $n^{th}$ Fermat number, then $F_n$ is prime if and only if $3^{(F_n - 1)/2} \equiv -1$ (mod $F$). The term $3^{(F_n - 1)/2}$ (mod $F_n$) may be calculated by $2^n-1$ squarings of the base $3$, modulo $F_n$. Pépin’s test is also a definitive primality test when performed with bases other than 3, such as 5, 6, and so on.
 
 ### Suyama cofactor test
 The Suyama test utilizes Fermat’s little theorem to test a Fermat number's cofactor for probable primality.
 It was devised by Hiromi Suyama in 1984 and subsequently improved upon by Hendrik W. Lenstra, Jr.
 If a Fermat number $F_n$ is composite and equal to $P \times C$, where $P$ is the product of known factors and $C$ is the cofactor, then the Suyama test is performed as follows:
 
-* Calculate $A = b^{F_n-1}$ (mod $F_n$) for some base $b$. If base = 3 then this is the square mod $F_n$ of the final Pepin residue.
+* Calculate $A = b^{F_n-1}$ (mod $F_n$) for some base $b$. If base = 3 then this is the square mod $F_n$ of the final Pépin residue.
 * Calculate $B = b^{P-1}$ (mod $F_n$).
 * Calculate $R = (A - B)$ (mod $C$). If $R = 0$ then the cofactor $C$ is a probable prime; otherwise it is composite.
 
@@ -128,11 +128,11 @@ Proving the cofactor composite requires finding only one base for which $R \neq 
 Finally, the cofactor $C$ can be tested to determine if it is a prime power by calculating the greatest common divisor $G = \text{gcd}(A - B, C)$. If $G = 1$ then the cofactor is not a prime power. If $G \neq 1$ then the cofactor is a prime power and is divisible by $G$.
 
 ### Computation
-The less performance-critical calculations in cofact use the GNU Multiple Precision (GMP) arithmetic library. However for the heavy lifting of modular squarings required by Pépin's test, the `gwnum` library is used since it is multi-threaded and therefore provides much higher performance. Even so, cofact (main branch) does not have Gerbitz error checking of calculations and does not save interim results to a file. So, for a Fermat cofactor test that is expected to run more than a few hours, it is preferable to first either generate the proof file using mprime / Prime95 (which has Gerbitz error checking and checkpoint / restart capability) or download the proof file from Catherine's [website](https://64ordle.au/fermat/). Once a Fermat number's proof file is in hand, `cofact -upr` can be used to test the new cofactor whenever a new factor of the Fermat number is discovered.
+The less performance-critical calculations in cofact use the GNU Multiple Precision (GMP) arithmetic library. However for the heavy lifting of modular squarings required by Pépin's test, the `gwnum` library is used since it is multi-threaded and therefore provides much higher performance. Even so, cofact (main branch) does not have Gerbicz error checking of calculations and does not save interim results to a file. So, for a Fermat cofactor test that is expected to run more than a few hours, it is preferable to first either generate the proof file using mprime / Prime95 (which has Gerbicz error checking and checkpoint / restart capability) or download the proof file from Catherine's [website](https://64ordle.au/fermat/). Once a Fermat number's proof file is in hand, `cofact -upr` can be used to test the new cofactor whenever a new factor of the Fermat number is discovered.
 
 ### Proof files
-mprime / Prime95 is capable of generating a verifiable delay function proof file for any Fermat number through $F_{30}$. Proof files have been generated and collected for $F_{14}$ through $F_{29}$ and are available from Catherine’s [website](https://64ordle.au/fermat/). If you wish to use mprime / Prime95 to generate a proof file for $F_{30}$ (requires a system with AVX512 support), we would be [most interested](https://www.mersenneforum.org/showthread.php?t=22668&page=6) in knowing about it!
+mprime / Prime95 is capable of generating a verifiable delay function proof file for any Fermat number through $F_{30}$. Proof files have been generated and collected for $F_{12}$ through $F_{29}$ and are available from Catherine’s [website](https://64ordle.au/fermat/). If you wish to use mprime / Prime95 to generate a proof file for $F_{30}$ (requires a system with AVX512 support), we would be [most interested](https://www.mersenneforum.org/node/17112?view=thread) in knowing about it!
 
 ### Residues
-For the full residue from Pepin's test and each step of the Suyama test, cofact prints the full residue mod $2^{64}$ in hexadecimal along with the triplet of smaller residues (mod $2^{35}-1$, mod $2^{36}-1$ and mod $2^{36}$) devised by Alexander Hurwitz and John Selfridge in 1964. These Selfridge-Hurwitz residues are printed in decimal and octal, to enable easier comparison with residues reported in historical references.
+For the full residue from Pépin's test and each step of the Suyama test, cofact prints the full residue mod $2^{64}$ in hexadecimal along with the triplet of smaller residues (mod $2^{35}-1$, mod $2^{36}-1$ and mod $2^{36}$) devised by Alexander Hurwitz and John Selfridge in 1964. These Selfridge-Hurwitz residues are printed in decimal and octal, to enable easier comparison with residues reported in historical references.
 
