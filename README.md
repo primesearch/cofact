@@ -57,7 +57,7 @@ This may be summed up as `cofact` having 3 basic modes of operation:
 ### Testing of Mersenne numbers
 
 Results of PRobable Prime (PRP) testing of Mersenne numbers and cofactors may also be reported to the GIMPS project at 
-(mersenne.org)[https://www.mersenne.org], so there are some additional options summarised here:
+[mersenne.org](https://www.mersenne.org), so there are some additional options summarised here:
 
 `cofact` Mode | Fermat numbers | Mersenne numbers without reporting | Mersenne numbers with reporting enabled
 --------------|----------------|------------------------------------|----------------------------------------
