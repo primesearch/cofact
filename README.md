@@ -36,17 +36,37 @@ number $F_5$ and the factor $641$:
 cofact 5 641
 ```
 The `cofact` distribution includes a verifiable delay function (VDF) proof for a small Fermat 
-number $F_{14}$, so to check the file has a correct value stored, type:
+number $F_{14}$, so to check the file has a correct $A$ value stored, as used in the cofactor test, type:
 ```bash
 cofact -cpr F14.proof 14
 ```
-This computes a primality test for $F_{14}$ and compares the result with the proof file. If you are 
-satisfied you have a valid proof file the check may be skipped; to proceed directly to test the 
+This computes a primality test for $F_{14}$ and compares the result of the next squaring with the proof file. 
+If you are satisfied you have a valid proof file the check may be skipped; to proceed directly to test the 
 cofactor, by supplying known factors, type:
 ```bash
 cofact -upr F14.proof 14 116928085873074369829035993834596371340386703423373313
 ```
-You may check or use any proof file with or without factors.
+You may check or use any proof file for a Fermat number (or Mersenne number), with or without factors – 
+though without factors `cofact` will only yield the $A$ value of the cofactor test.
+
+This may be summed up as `cofact` having 3 basic modes of operation:
+* __Mode 1__: run a primality test on a Fermat number (Pépin’s test), and optionally a probable primality test on the cofactor (Suyama’s test) if factors are provided.
+* __Mode 2__: run a primality test on a Fermat number and check the computation against a proof file, and optionally running the cofactor test if factors are provided.
+* __Mode 3__: skip primality testing of the Fermat number, and use a proof file to run the cofactor test with provided factors.
+
+### Testing of Mersenne numbers
+
+Results of PRobable Prime (PRP) testing of Mersenne numbers and cofactors may also be reported to the GIMPS project at 
+(mersenne.org)[https://www.mersenne.org], so there are some additional options summarised here:
+
+`cofact` Mode | Fermat numbers | Mersenne numbers without reporting | Mersenne numbers with reporting enabled
+--------------|----------------|------------------------------------|----------------------------------------
+Mode 1 | Runs Pépin test; optionally, runs Suyama test | Runs Fermat-PRP test; optionally, runs Suyama test | Runs Fermat-PRP (type 1 test), or Fermat-PRP and Suyama tests with factors (type 5 test)
+Mode 2 | Runs Pépin test; optionally, runs Suyama test; proof file required | Runs Fermat-PRP test; optionally, runs Suyama test; proof file required | Runs Fermat-PRP (type 1 test), or Fermat-PRP and Suyama with factors (type 5 test); proof file is verified for correctness
+Mode 3 | Runs Suyama test only; proof file required; does not use `gwnum` | Runs Suyama test only; proof file required; does not use `gwnum` | Runs Suyama test only (type 5); proof file is verified using `gwnum` for correctness
+
+The Pépin or Fermat-PRP tests, along with proof verification, all require the `gwnum` library and can run multi-threaded. In mode 2 `cofact` will only check the final residue calculated matches the Suyama $A$ residue in a proof file, unless reporting is enabled with the `-j` option, in which case the correctness of the proof file will also be verified. Since this may amount to repeating the same computation more than once, the reporting option is intended either for Mode 1 with Mersenne exponents too small to generate proofs, or Mode 3 with all other Mersenne numbers and a proof furnished from another program.
+
 ## Basic command line options
 The initial command line options have burgeoned since version 0.6. The basic options are:
 
@@ -90,8 +110,8 @@ by previous researchers, which helps verify that the mathematics involved in car
 test is being correctly calculated.
 
 In 1999, Ernst Mayer (with Richard Crandall and Jason Papadopoulos) had run the Pépin test on 
-then-smallest known Fermat number lacking known prime factors, $F_{24}$, finding it composite. 
-Beginning in 2013, he added the capability to run the Pépin test to his 
+then-smallest known Fermat number lacking known factors and of unknown character, $F_{24}$, 
+finding it composite. Beginning in 2013, he added the capability to run the Pépin test to his 
 [`Mlucas` program](https://github.com/primesearch/Mlucas) as part of 
 a decade-long programme to run the Pépin and Suyama cofactor tests on each of the next six 
 Fermat numbers up to $F_{30}$, proving each of the cofactors to be composite.
@@ -199,7 +219,7 @@ Short option   | Long option          | Function
 -d             |--debug               | Print debug information.
 -h             |--help                | Print basic help (`-hv` and `-h -sv` are increasingly verbose).
 -i             |--interim-residues    | Print interim residues at various points.
--j             |--report-json         | Print a `JSON` report string for a Mersenne cofactor test, to allow submission of cofactor results. PrimeNet user and computer names may be entered into the string (see `-w` and `-q`). If a proof file is used, it will be verified to ensure the final residue can be correctly generated from the file. Verification takes a fraction of time compared to the original computation.
+-j             |--report-json         | Print a `JSON` report string for a Mersenne cofactor test, to allow submission of cofactor results. PrimeNet user and computer names may be entered into the string (see `-w` and `-q`). If a proof file is used, it will be verified to ensure the final residue can be correctly generated from the file. Verification takes a fraction of time compared with the original computation.
 -k             |--known-factors       | Use known factors of Fermat numbers (as of 2012) in place of supplying them after the exponent. When testing a Mersenne number in combination with checking or using a VDF proof, `cofact` can read the proof file’s description to import any known factors saved in the file header.
 -m             |--mod-c               | Reduce Suyama $A$ and $B$ values, modulo $C$ and print residues.
 -o             |--octal               | Print Selfridge–Hurwitz residues in octal as well as decimal.
