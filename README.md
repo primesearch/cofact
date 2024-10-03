@@ -12,20 +12,20 @@ for comparison with the residues reported by other programs.
 
 ## Requirements
 * Intel or compatible x86-family processor (AVX-512 required for the largest exponents)
-* GNU Multiple Precision Arithmetic Library
-* Copy of the Prime95/mprime source code, including the `gwnum` large number library. 
+* GNU Multiple Precision Arithmetic Library from [gmplib.org](https://gmplib.org)
+* Copy of the Prime95/mprime source code from [mersenne.org](https://www.mersenne.org/download/), including the `gwnum` large number library. 
 
 ## Installation
 You should either unzip the `cofact` download as a directory  within the Prime95 source library 
 directory `gwnum`, or run `git clone` in that directory, as `cofact` uses a number of files from 
 the Prime95 source. First, run the `gwnum` makefile for your platform, e.g. for \[macOS|Linux|Win\]:
 ```bash
-cd p95v3019b17/gwnum; make -f [makemac|make64|makemw64]
+cd p95v3019b21/gwnum; make -f [makemac|make64|makemw64]
 ```
 Then for `cofact`:
 ```bash
 git clone --branch cxc https://github.com/primesearch/cofact.git
-cd cofact; bash cmake.sh
+cd cofact; bash cmake.sh ../..
 ```
 Finish the installation by copying the `cofact` executable to your usual directory for binaries.
 ### Basic operation
@@ -63,9 +63,11 @@ Results of PRobable Prime (PRP) testing of Mersenne numbers and cofactors may al
 --------------|----------------|------------------------------------|----------------------------------------
 Mode 1 | Runs Pépin test; optionally, runs Suyama test | Runs Fermat-PRP test; optionally, runs Suyama test | Runs Fermat-PRP (type 1 test), or Fermat-PRP and Suyama tests with factors (type 5 test)
 Mode 2 | Runs Pépin test; optionally, runs Suyama test; proof file required | Runs Fermat-PRP test; optionally, runs Suyama test; proof file required | Runs Fermat-PRP (type 1 test), or Fermat-PRP and Suyama with factors (type 5 test); proof file is verified for correctness
-Mode 3 | Runs Suyama test only; proof file required; does not use `gwnum` | Runs Suyama test only; proof file required; does not use `gwnum` | Runs Suyama test only (type 5); proof file is verified using `gwnum` for correctness
+Mode 3 | Runs Suyama test only; proof file required; does not use `gwnum` | Runs Suyama test only; proof file required; does not use `gwnum` | Runs Suyama test only; proof file is verified using `gwnum` for correctness
 
-The Pépin or Fermat-PRP tests, along with proof verification, all require the `gwnum` library and can run multi-threaded. In mode 2 `cofact` will only check the final residue calculated matches the Suyama $A$ residue in a proof file, unless reporting is enabled with the `-j` option, in which case the correctness of the proof file will also be verified. Since this may amount to repeating the same computation more than once, the reporting option is intended either for Mode 1 with Mersenne exponents too small to generate proofs, or Mode 3 with all other Mersenne numbers and a proof furnished from another program.
+The Pépin or Fermat-PRP tests, along with proof verification, all require the `gwnum` library and can run multi-threaded. In mode 2 `cofact` will only check the final residue calculated matches the Suyama $A$ residue in a proof file, unless reporting is enabled with the `-j` option, in which case the correctness of the proof file will also be verified. Since this may amount to repeating the same computation more than once, the reporting option is intended either for Mode 1 with Mersenne exponents too small to generate proofs, or Mode 3 for all other Mersenne numbers using a proof furnished from another program (e.g. mprime or gpuOwL).
+
+`cofact`’s Mode 3 can be used with proofs to submit results (including a Res2048 value) for Mersenne numbers without factors (Type 1) or with factors (Type 5); this is especially useful if a result was initially submitted including only the smaller Res64 value.
 
 ## Basic command line options
 The initial command line options have burgeoned since version 0.6. The basic options are:
@@ -117,10 +119,10 @@ a decade-long programme to run the Pépin and Suyama cofactor tests on each of t
 Fermat numbers up to $F_{30}$, proving each of the cofactors to be composite.
 
 Complete `Mlucas` results of the Pépin tests starting with $F_{13}$ up to $F_{30}$, and the Suyama 
-test for each of those except for $F_{13}$, $F_{20}$, and $F_{24}$, have been 
+test for each of those except for $F_{13}$, $F_{20}$, and $F_{24}$, have since been 
 [repeated](https://www.mersenneforum.org/node/17112?p=889067#post889067), 
-and to meet the ideal of hardware and software-independent verification Wilfrid Keller and 
-Gary Gostin began a follow-up project to verify Mayer’s `Mlucas` results using Woltman’s `mprime`. 
+and to meet the ideal of hardware- and software-independent verification Wilfrid Keller and 
+Gary Gostin began a follow-up project in 2023 to verify Mayer’s `Mlucas` results using Woltman’s `mprime`. 
 This motivated the creation of `cofact` by Gostin to augment the capabilities of `mprime`.
 
 `mprime` does not produce Selfridge–Hurwitz residues, however `cofact` uses mprime’s `gwnum` 
@@ -168,9 +170,9 @@ or Mersenne number $M$ is composite and equal to $Q \times C$, where $Q$ is the 
 factors and $C$ is the cofactor, then having calculated either $A \equiv b^{F-1}$ (mod $F$) or 
 $A \equiv b^{2^{p}-2}$ (mod $M$), we also calculate $B \equiv b^{Q-1}$ modulo $F$ or $M$ 
 respectively; this then allows a comparison by simple subtraction, modulo the cofactor. If 
-$$A - B \equiv 0\ (\text{mod}\ C)$$
+$A - B \equiv 0$ (mod $C$)
 then the cofactor is probably prime to the base $b^Q$; otherwise it is composite. Taking the 
-greatest common divisor $\text{gcd}(A - B, C)$ also tests whether the cofactor is a 
+greatest common divisor gcd($A - B, C$) also tests whether the cofactor is a 
 prime power, divisible by the gcd.
 
 ## Computation
@@ -178,7 +180,7 @@ Most of the smaller calculations in `cofact` use the GNU Multiple Precision (GMP
 library, however for the heavy lifting of modular squarings required by the Pépin test or 
 Fermat-PRP test, the `gwnum` library provides better, multi-threaded performance. `cofact` 
 does not save interim results however, so for any Mersenne exponent greater than a million, 
-a dedicated piece of software such as `Prime95` or `gpuOwl` will provide save and restart 
+a dedicated piece of software such as `Prime95` or `gpuOwL` will provide save and restart 
 functionality, and may generate a proof which `cofact` can then utilise to rerun the Suyama 
 test whenever new factors are discovered.
 ### Proof files
