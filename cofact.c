@@ -606,7 +606,7 @@ int main (int argc, char **argv) {
                 flags = strpbrk(argv[argi], "bB");
                 if (flags != NULL && (binary & 2) == 0) binary += 2;
                 flags = strpbrk(argv[argi], "cC");   // increment z to ensure only one flag requiring a parameter is flagged at any time
-                if (flags != NULL) { check_proof_res = 1; strncpy (proof_file_name, argv[argi+1], NAME_LEN-1); z++; }
+                if (flags != NULL && argi + z + 1 < argc) { check_proof_res = 1; strncpy (proof_file_name, argv[argi+1], NAME_LEN-1); z++; }
                 flags = strpbrk(argv[argi], "dD");
                 if (flags != NULL) debug = 1;
                 flags = strpbrk(argv[argi], "hH");
@@ -622,13 +622,13 @@ int main (int argc, char **argv) {
                 flags = strpbrk(argv[argi], "oO");
                 if (flags != NULL && (binary & 8) == 0) binary += 8;
                 flags = strpbrk(argv[argi], "pP");
-                if (flags != NULL) { j_progress_inc = atol(argv[argi+1]); z++; }
+                if (flags != NULL && argi + z + 1 < argc) { j_progress_inc = atol(argv[argi+1]); z++; }
                 flags = strpbrk(argv[argi], "qQ");
                 if (flags != NULL) {computer = argi+1; z++;}
                 flags = strpbrk(argv[argi], "tT");
-                if (flags != NULL) { threads = atoi(argv[argi+1]); z++; }
+                if (flags != NULL && argi + z + 1 < argc) { threads = atoi(argv[argi+1]); z++; }
                 flags = strpbrk(argv[argi], "uU");
-                if (flags != NULL) { use_proof_res = 1; strncpy (proof_file_name, argv[argi+1], NAME_LEN-1); z++; }
+                if (flags != NULL && argi + z + 1 < argc) { use_proof_res = 1; strncpy (proof_file_name, argv[argi+1], NAME_LEN-1); z++; }
                 flags = strpbrk(argv[argi], "vV");
                 if (flags != NULL) verbose = 1;
                 flags = strpbrk(argv[argi], "wW");
@@ -636,14 +636,14 @@ int main (int argc, char **argv) {
                 flags = strpbrk(argv[argi], "xX");
                 if (flags != NULL && (binary & 16) == 0) binary += 16;
                 flags = strpbrk(argv[argi], "yY");
-                if (flags != NULL) {
+                if (flags != NULL && argi + z + 1 < argc) {
                     mpz_set_str (tmp, argv[argi+1], 10);
                     exp = mpz_get_ui (tmp);
                     if (exp < 3) {printf ("Smallest Mersenne exponent must exceed 2.\n\n"); exit (1);}
                     if (mpz_cmp_ui (tmp, exp) != 0 || exp > 1073741824) {printf ("Mersenne exponent must not exceed 2^30 = 1073741824.\n\n"); exit (1);}
                 }
                 flags = strpbrk(argv[argi], "zZ");   // increment z to ensure we advance argument past number
-                if (flags != NULL) { mpz_set_str(B, argv[argi+1], 10); z++; }
+                if (flags != NULL && argi + z + 1 < argc) { mpz_set_str(B, argv[argi+1], 10); z++; }
                 // reserving g for Gerbicz error checking
                 flags = strpbrk(argv[argi], "eEfFgGlLnNrRsS1234567890"); // check if there were other letters or numbers in combined flag
                 if (flags != NULL) {
