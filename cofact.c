@@ -55,8 +55,8 @@
  * There is some limited error checking using Gerbicz's integrity test for PRP tests on numbers
  * with known prime factors q, which has a 1/q likelihood of error (which is small for large q).
  *
- * Some future nice things to consider adding: full Gerbicz error checking, proof generation or
- * validation, and giving everyone a unicorn.
+ * Some future nice things to consider adding: full Gerbicz error checking, proof generation,
+ * and giving everyone a unicorn.
  */
 
 #include <stdlib.h>
@@ -89,7 +89,7 @@
 #define tv_msecs(tv) (tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0)
 
 const char *prog_name  = "cofact";
-const char *prog_vers  = "0.75c";
+const char *prog_vers  = "0.9";
 const char *build_date = __DATE__;
 const char *build_time = __TIME__;
 
@@ -195,8 +195,8 @@ void usage (int verbose) {
     printf ("  -a, -i              All or Interim residues printed\n");
     printf ("  -d, -v, -sv         Print Debug, Verbose, or Super-Verbose information\n");
     printf ("  -h, --help          This basic Help\n");
-    printf ("  -k                  Use known Fermat factors\n");
-    printf ("                  **  Do NOT use -k if you believe you have a new Fermat factor to test.   **\n");
+    printf ("  -k                  Use known Fermat factors (or Mersenne factors if a proof header lists them)\n");
+    printf ("                  **  Do NOT use -k if you believe you have a new factor to test.   **\n");
     printf ("  -t threads          Specifies the number of threads to use in the gwnum library. Defaults to 1.\n");
     printf ("  -y, --mersenne      Run Fermat-PRP or cofactor tests on a Mersenne number M = 2^p - 1, p > 30\n");
     printf ("                      This flag is optional but if used it must immediately precede the exponent.\n");
@@ -204,14 +204,14 @@ void usage (int verbose) {
     printf ("                      Flags modifying cofact's operation should always precede the exponent.\n\n");
     printf ("More verbose help is available:    cofact -hv | more\n\n");
     } else {
-    printf ("  Usage:   cofact [-cpr|--check-proof|-c|-u|--use-proof|-upr filename]\n");
+    printf ("  Usage:   cofact [-cpr|-c|--check-proof|-upr|-u|--use-proof  filename]\n");
     printf ("                  [-a|--all-residues|-b|--binary|-d|--debug|-h|--help|-i|--interim-residues]\n");
     printf ("                  [-k|--known-factors|-m|--mod-c|-o|--octal|-v|--verbose|-x|--hex|--hexadecimal]\n");
-    printf ("                  [-j|--report-json] [-q|--user|-w|--computer string]\n");
-    printf ("                  [-p|--iterations number]\n");
+    printf ("                  [-j|--report-json] [-q|--user|-w|--computer  string]\n");
+    printf ("                  [-p|--iterations  number]\n");
     printf ("                  [-sep|--separator]\n");
-    printf ("                  [-t|--threads number]\n");
-    printf ("                  [-z|--base number]\n");
+    printf ("                  [-t|--threads  number]\n");
+    printf ("                  [-z|--base  number]\n");
     printf ("                  [-y|--mersenne]      Fermat_or_Mersenne_exponent    [factor_1 factor_2 ...]\n\n");
     printf ("  Default (mode 1) runs a P%lspin primality test or Fermat-PRP test, followed by a Suyama cofactor\n", pe);
     printf ("  test if factors are supplied.\n\n");
@@ -221,30 +221,31 @@ void usage (int verbose) {
     printf ("                           For exponents less than 31, -y must immediately precede the exponent.\n");
     printf ("  factor(s)                Whole number(s) dividing a Mersenne number M = 2^p - 1, p > 2\n");
     printf ("                           Up to 15 factors are supported (the most known is currently 12)\n\n");
-    printf (" -cpr filename  or         Mode 2: Read the Suyama A residue from a mprime proof file, and compare\n");
-    printf (" --check-proof filename    it with the A residue calculated by cofact, then run the Suyama test\n");
-    printf (" -c filename               Same as -cpr or --check-proof, but -c may be combined with other flags\n");
-    printf (" -u filename               Same as -upr or --use-proof, but -u may be combined with other flags\n");
-    printf (" -upr filename  or         Mode 3: Bypass the P%lspin test, read the Suyama A residue from a mprime\n", pe);
-    printf (" --use-proof filename      proof file and use it to complete the Suyama test\n\n");
+    printf (" -cpr  filename  or        Mode 2: Read the Suyama A residue from a mprime proof file, and compare\n");
+    printf (" --check-proof  filename   it with the A residue calculated by cofact, then run the Suyama test\n");
+    printf (" -c  filename              Same as -cpr or --check-proof, but -c may be combined with other flags\n\n");
+    printf (" -upr  filename  or        Mode 3: Bypass the P%lspin test, read the Suyama A residue from a mprime\n", pe);
+    printf (" --use-proof  filename     proof file and use it to complete the Suyama test\n");
+    printf (" -u  filename              Same as -upr or --use-proof, but -u may be combined with other flags\n\n");
     printf (" -a, --all-residues        Print residues for every squaring (not recommended for large numbers)\n");
     printf (" -b, --binary              Print full residue in binary (also not recommended for large numbers)\n");
     printf (" -d, --debug               Print debug information\n");
     printf (" -h, --help                Print basic help and exit (-hv and -h -sv give increasingly more info)\n");
     printf (" -i, --interim-residues    Special flag for printing certain interim residues (e.g. F8, F17, F22)\n");
-    printf (" -k, --known-factors       Use currently known prime factors (as of 2012) for Fermat numbers.\n");
-    printf ("                       **  Do NOT use -k if you believe you have a new Fermat factor to test.   **\n\n");
+    printf (" -k, --known-factors       Use currently known prime factors of Fermat numbers (as of 2012).\n");
+    printf ("                           If you have a Mersenne proof, the header may list known factors to use.\n");
+    printf ("                       **  Do NOT use -k if you believe you have a new factor to test.   **\n\n");
     printf (" -m, --mod-c               Special flag for reducing Suyama A and B values modulo the cofactor C\n");
     printf (" -o, --octal               Additionally print Selfridge-Hurwitz residues in octal\n");
     printf (" -v, --verbose             Print more verbose information\n");
     printf (" -x, --hex, --hexadecimal  Also print Selfridge-Hurwitz residues in hexadecimal\n");
     printf (" -j, --report-json         Enable JSON manual results reporting for Mersenne cofactor tests:\n");
-    printf (" -w, --user string         This adds a username to the JSON report.\n");
-    printf (" -q, --computer string     This adds the name of which computer ran the test to the JSON report.\n\n");
-    printf (" -p, --iterations number   Print progress every multiple iterations, instead of default 10%%\n");
+    printf (" -w, --user  string        This adds a username to the JSON report.\n");
+    printf (" -q, --computer  string    This adds the name of which computer ran the test to the JSON report.\n\n");
+    printf (" -p, --iterations  number  Print progress every multiple iterations, instead of default 10%%\n");
     printf (" -sep, --separator         Print a separator line at the end of a run to better see multiple runs\n");
-    printf (" -t, --threads number      Specifies the number of threads to use in the gwnum library\n");
-    printf (" -z, --base number         Use a different base for the P%lspin or Suyama test (default = base 3)\n", pe);
+    printf (" -t, --threads  number     Specifies the number of threads to use in the gwnum library\n");
+    printf (" -z, --base  number        Use a different base for the P%lspin or Suyama test (default = base 3)\n", pe);
     printf ("                           If the base is unsuitable for a primality test, modes 1 or 2 revert to\n");
     printf ("                           a Fermat PRobable Prime (PRP) test\n\n");
     printf ("Some examples:\n");
@@ -252,14 +253,12 @@ void usage (int verbose) {
     printf ("    cofact -k 12                  Mode 1 tests of F12 using its 6 known factors\n");
     printf ("    cofact -kc F17.proof -t 2 17  Mode 2 multithreaded check of a proof of F17 using known factors\n");
     printf ("    cofact -ku F17.proof 17       Mode 3 test skipping the P%lspin test, and running cofactor test\n\n", pe);
-    printf ("    cofact -y 11 23               Mode 1 tests of smallest composite Mersenne with a prime exponent\n");
+    printf ("    cofact -y 11 23               Mode 1 tests of smallest composite Mersenne with prime exponent\n");
     printf ("    cofact -c p700001.proof 700001 242220807029231            Mode 2 test of a Mersenne number\n");
-    printf ("    cofact -u p2033873.proof 2033873 38429209233120600953063  Mode 3 test of a Mersenne number\n");
-    printf ("\n");
+    printf ("    cofact -u p2033873.proof 2033873 38429209233120600953063  Mode 3 test of a Mersenne number\n\n");
     }
     if (verbose == 2) {
-    printf ("----------------------------------------------------------------------------------------------------\n");
-    printf ("\n");
+    printf ("----------------------------------------------------------------------------------------------------\n\n");
     printf ("  cofact was originally written by Gary B. Gostin to confirm cofactor tests of the Fermat numbers\n");
     printf ("  from F25 up to F30 (the largest of which reaches about 320 million digits in size).\n");
     printf ("  This version has been extensively revised, with various custom modifications by Catherine X. \n");
@@ -272,76 +271,61 @@ void usage (int verbose) {
     printf ("      F22, 13 interim values from 126,000 to 4,182,000 squarings (cf. Trevisan & Carvalho, 1995);\n\n");
     printf ("      Morehead and Western (1905, 1909) used a method for evaluating the residue m+1 squarings \n");
     printf ("      before the final residue. If the -i flag is set for any Fermat number greater than F2, this \n");
-    printf ("      interim residue for the (2^m - m - 2)th squaring will be printed.\n");
-    printf ("\n");
-    printf ("  If the -p flag is also used with -i, then residues will also be printed at each set interval.\n");
-    printf ("\n");
+    printf ("      interim residue for the (2^m - m - 2)th squaring will be printed.\n\n");
+    printf ("  If the -p flag is also used with -i, then residues will also be printed at each set interval.\n\n");
     printf ("  Flag -m for reducing the Suyama A and B values by mod C, prior to evaluating (A - B) mod C\n");
-    printf ("  (cf. Crandall, Doenias, et al., 1995);\n");
-    printf ("\n");
-    printf ("  Options -o and -x for printing octal and hex representations of Selfridge-Hurwitz residues;\n");
-    printf ("\n");
-    printf ("  Flag -b for printing the entire binary representation of the residue;\n");
-    printf ("\n");
+    printf ("  (cf. Crandall, Doenias, et al., 1995);\n\n");
+    printf ("  Options -o and -x for printing octal and hex representations of Selfridge-Hurwitz residues;\n\n");
+    printf ("  Flag -b for printing the entire binary representation of the residue;\n\n");
     printf ("  Undocumented super-verbose flag -sv for outputting full residues of P%lspin tests and from saved \n", pe);
     printf ("  proofs, full values of cofactors, outputting the binary representations of cofactors (yikes), \n");
-    printf ("  and other what-not.\n");
-    printf ("\n");
+    printf ("  and other what-not.\n\n");
     printf ("  Use with care! The super-verbose flag -sv also includes the normal -v level of verbosity, and \n");
     printf ("  switches on -d (debug), -i, -m, -o, and -x flags as well. It is not a good idea to run -sv on \n");
-    printf ("  Fermat numbers greater than F10 unless you need or want full listings of cofact's doings.\n");
-    printf ("\n");
+    printf ("  Fermat numbers greater than F10 unless you need or want full listings of cofact's doings.\n\n");
     printf ("  Any of the following flags may be run together as one argument, i.e. as -abcdhijkmopqtuvwxz:\n");
     printf ("    -a, -b, -i, -m, -o, -p, -x  for various modifications to the P%lspin or Suyama test output;\n", pe);
-    printf ("    -c or -u filename           to either check or use a proof file (but you cannot specify both);\n");
+    printf ("    -c or -u  filename          to either check or use a proof file (but you cannot specify both);\n");
     printf ("    -d, -v                      for debug or verbose modes;\n");
     printf ("    -h or -hv                   for help or verbose help;\n");
-    printf ("    -k                          to use the known factors for a Fermat number;\n");
+    printf ("    -k                          to use the known factors for a Fermat number, or if you have a\n");
+    printf ("                                proof of a Mersenne number, the file header may list known primes;\n");
     printf ("    -j                          producing a JSON report of a cofactor test (Mersennes only);\n");
-    printf ("    -w or -q string             adding user or computer strings to JSON report;\n");
-    printf ("    -t threads                  to use multithreading for the P%lspin test;\n", pe);
-    printf ("    -z base                     to use a non-standard base for the P%lspin or Suyama test.\n", pe);
+    printf ("    -w or -q  string            adding user or computer strings to JSON report;\n");
+    printf ("    -t  threads                 to use multithreading for the P%lspin test;\n", pe);
+    printf ("    -z  base                    to use a non-standard base for the P%lspin or Suyama test.\n", pe);
     printf ("  Flags that require additional parameters as arguments (-c, -p, -q, -t, -u, -w, -z) cannot be\n");
-    printf ("  combined as a single flag.\n");
-    printf ("  The -c, -u, and -z options cannot be used in a combined flag, e.g. -cuz, as each requires a\n");
-    printf ("  filename or variable to be supplied afterward. Not all possible bases are supported for the\n");
-    printf ("  P%lspin test.\n", pe);
-    printf ("  If -a with either -b and/or -i are used together, cofact will tacitly ignore -b and/or -i.\n");
-    printf ("  If -c and -u are used as separate flags, cofact will report the error and bypass the P%lspin test.\n", pe);
-    printf ("\n");
-    printf ("  Conversely, the -cpr, -sep, -sv, and -upr flags must be entered separately.\n");
-    printf ("\n");
+    printf ("  combined as a single flag. In addition, if both -c and -u are separately specified (to check\n");
+    printf ("  or utilise a proof) cofact will report the error and bypass the P%lspin or Fermat-PRP test.\n", pe);
+    printf ("  Not all possible bases are supported for the P%lspin test; cofact will attempt to revert to a\n", pe);
+    printf ("  Fermat-PRP test if the chosen base is unsuitable.\n");
+    printf ("  If -a with either -b and/or -i are used together, cofact will tacitly ignore -b and/or -i.\n\n");
+    printf ("  Conversely, the -cpr, -sep, -sv, and -upr flags must be entered separately.\n\n");
     printf ("  The following numbers of known factors as of 2012 are programmed with the -k flag:\n");
     printf ("      F12: 6 known factors\n");
     printf ("      F13: 4 known factors\n");
     printf ("      F15, F19, F25: 3 known factors\n");
     printf ("      F16, F17, F18, F27, F30, [F36]: 2 known factors\n");
     printf ("      F14, F21, F22, F23, F26, F28, F29, [F31, F32]: 1 known factor\n");
-    printf ("      F5, F6, F7, F8, F9, F10, F11: all factors\n");
-    printf ("\n");
+    printf ("      F5, F6, F7, F8, F9, F10, F11: all factors\n\n");
     printf ("****  I cannot stress enough - if you are testing for a newly discovered factor,  ****\n");
-    printf ("****  do NOT use the -k flag!                                                     ****\n");
-    printf ("\n");
-    printf ("  Gary Gostin's version of cofact will not allow composite factors to be tested. This version does \n");
-    printf ("  allow composite factors, and will show whether any known prime factors divide them. (Frequently \n");
-    printf ("  ECM is able to find composite factors, which turn out to be products of known factors.) \n");
-    printf ("\n");
-    printf ("  If you are running cofactor tests on Mersennes, cofact will have no known factors stored, and \n");
-    printf ("  so cannot detect whether a composite factor is comprised of known factors. It will tell you if \n");
-    printf ("  a factor is composite, in which case you are strongly encouraged to check the divisibility of \n");
-    printf ("  any known factors of that Mersenne.\n");
-    printf ("\n");
-    printf ("  Other notes:\n");
-    printf ("\n");
+    printf ("****  do NOT use the -k flag!                                                     ****\n\n");
+    printf ("  Gary Gostin's version of cofact will not allow composite factors to be tested. This version does\n");
+    printf ("  allow composite factors, and will show whether any known prime factors divide them. (Frequently\n");
+    printf ("  ECM is able to find composite factors, which turn out to be products of known factors.)\n\n");
+    printf ("  If you are running cofactor tests on Mersennes, cofact will have no known factors stored. If\n");
+    printf ("  you have a proof file, the header may list known factors which cofact can read, using the -k\n");
+    printf ("  flag, but this cannot certainly account for all possibilities or discovery of new factors.\n");
+    printf ("  cofact will inform you whether a factor you supply is composite, in which case you are strongly\n");
+    printf ("  encouraged to check its divisibility by any known factors of that Mersenne.\n\n");
+    printf ("  Other notes:\n\n");
     printf ("      You cannot test F0. (It doesn't need testing. Try cofact 0 if you don't believe me.)\n");
-    printf ("      You cannot test F31 or greater with cofact. (Yet. Preparations are afoot.)\n");
+    printf ("      You cannot test F31 or greater with cofact. (Yet.)\n");
     printf ("      Testing F30 in mode 1 or 2 requires an x86 family processor with AVX-512 extensions.\n");
-    printf ("      Using proof files for F21 and above is highly advisable. Proofs for F14 to F29 are available \n");
-    printf ("      from:\n");
-    printf ("          https://64ordle.au/fermat/ \n");
-    printf ("\n");
-    printf ("  Results of historical tests cited in my essay:\n");
-    printf ("\n");
+    printf ("      Using proof files for F21 and above is highly advisable. Proofs for F12 to F29 (which\n");
+    printf ("      are typically named Fxx.proof, substituting the exponent) are available from:\n");
+    printf ("          https://64ordle.au/fermat/             (e.g. https://64ordle.au/fermat/F12.proof)\n\n");
+    printf ("  Results of historical tests cited in my essay:\n\n");
     printf ("  cofact -a 5 641            1877, demonstration of Th%lsophile P%lspin's theorem with F5;\n", pe, pe);
     printf ("  cofact -ov 7               1905, Morehead and Western separately test F7;\n");
     printf ("  cofact -iov 8              1909, Morehead and Western together test F8;\n");
@@ -354,8 +338,7 @@ void usage (int verbose) {
     printf ("  cofact -mku F21.proof 21         and Crandall, Doenias, et al., run Suyama tests on F19 and F21;\n");
     printf ("  cofact -m 19 70525124609 646730219521      (these two Suyama tests work faster using VDF proofs)\n");
     printf ("  cofact -t 4 24             1999, Crandall, Mayer, and Papadopoulos find F24 composite;\n");
-    printf ("  cofact -ku F28.proof 28    2022, Mayer announced results of Suyama tests of F28, F29, and F30.\n");
-    printf ("\n");
+    printf ("  cofact -ku F28.proof 28    2022, Mayer announced results of Suyama tests of F28, F29, and F30.\n\n");
     printf ("----------------------------------------------------------------------------------------------------\n");
     }
 }
@@ -374,7 +357,7 @@ int main (int argc, char **argv) {
     unsigned long j_progress;       // The next j at which to print progress
     unsigned long j_progress_inc;   // The j increment at which to report progress
     unsigned long k;                // Always 1 for a Fermat number
-    unsigned long c;                // Always 1 for a Fermat number, -1 for a Mersenne number
+    long c;                         // Always 1 for a Fermat number, -1 for a Mersenne number
     int threads;                    // Number of threads (cores) to use in gwnum library
     int fft_length;                 // report gwnum fft-length for JSON string
     int digits;                     // Number of digits in the cofactor
@@ -520,7 +503,7 @@ int main (int argc, char **argv) {
     who = 0;
     exp = 0;                // Default to no Suyama testing of a Mersenne
     m = 0;                  // Invalid value for Fermat numbers, to make sure m is later set
-    z = 0;                  // Flag for combined menu options requiring an additional parameter (-c, -q, -u, -w, -z)
+    z = 0;                  // Flag for combined menu options requiring an additional parameter (-c, -p, -q, -u, -w, -z)
     digits = 0;             // Also an invalid value
     prp = 0;                // Switch to 1 if or when we print a statement of primality
     n_comp = 1;             // Start with an assumption we only have composite supplied factors
@@ -775,7 +758,7 @@ int main (int argc, char **argv) {
                 }
                 if (!debug && z == 1) break;
             } // There are only 3 pseudoprimes left below 10^9
-            if (z == 0 && (exp % 2251 == 0 || exp % 7333 == 0 || exp % 11717 == 0)) {
+            if (z == 0 && exp > 11717 && (exp % 2251 == 0 || exp % 7333 == 0 || exp % 11717 == 0)) {
                 printf ("The Mersenne exponent %lu is a strong pseudo-prime to bases 2, 3, and 5, but is composite.\n", exp);
                 exit (1); // Composite Mersenne exponents disallowed
             }
@@ -1341,6 +1324,7 @@ int main (int argc, char **argv) {
                 printf ("\n");
             }
         }
+        fflush (stdout);
 
         // Initialize r_gw = base for Pepin test = 3
         GWbase = mpz_get_ui (GMPbase);
@@ -1351,10 +1335,6 @@ int main (int argc, char **argv) {
         // Create buffer for transfer of residues from GWNUM to GMP
         r_bin_buf_len = exp / 64 + 1;
         r_bin = (unsigned long *) calloc (r_bin_buf_len, sizeof (unsigned long));
-    /*
-        len = gwtobinary64 (&gwdata, r_gw, r_bin, r_bin_buf_len);
-        printf ("base = %2ld, r_gw = %016lx %016lx\n", GWbase, r_bin[1], r_bin[0]);
-    */
 
         x = exp - 1;                                            // Number of Pepin test square/mod steps: x = 2^n - 1
 
