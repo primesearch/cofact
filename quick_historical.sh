@@ -1,6 +1,12 @@
 # Run cofact on each Fermat number using the best method for that number, "best" meaning reasonably 
 # fast.
 #
+# This script assumes that mprime has already generated proof files for F17 to F29 (the F30 test is 
+# commented out).
+#
+# (Proof files for F12 to F29 can be downloaded from https://64ordle.au/fermat/ and should be 
+# located in the same directory as this script.)
+#
 # This run should take less than an hour, as we exclude several mode 2 -cpr tests (i.e. running 
 # the full Pepin test) for three reasonably large Fermat numbers (F20, F22, and F24).
 #
@@ -14,12 +20,6 @@
 # The Suyama test is not possible for F20 and F24 as they have no known factors, so cofact
 # can display the Suyama A residue and no more.
 #
-# This script assumes that mprime has already generated proof files for F17 to F29 (the F30 test is 
-# commented out).
-#
-# (Proof files for F14 to F29 can be downloaded from https://64ordle.au/fermat/ and should be 
-# located in the same directory as this script.)
-#
 # We suggest copying the compiled cofact executable to a directory for binaries in your path, and 
 # redirecting the output of this script to a file in the background, with something like:
 #
@@ -31,8 +31,7 @@
 
 cofact -h -sv
 
-# For F0 - F16, mprime does not generate proof files. So just have cofact perform the Pepin and 
-# Suyama tests.
+# For F0 to F11, cofact performs the Pepin and Suyama tests without proofs.
 
 echo "1640: Pierre de Fermat found F0 to F4 to be prime:
 "
@@ -83,6 +82,9 @@ echo "F11 is completely factored with 5 factors (largest factor with 564 digits)
 "
 cofact -m -sep 11 319489 974849 167988556341760475137 3560841906445833920513
 
+# For F12 to F16, mprime by default does not generate proof files. So just have cofact perform the Pepin and 
+# Suyama tests. (If you have the five extra proofs for F12 to F16, feel free to change these as you see fit.)
+
 echo "Suyama test on 1,202-digit cofactor of F12 (Wagstaff, 4 known factors):
 "
 cofact -iv -sep 12 114689 26017793 63766529 190274191361
@@ -129,7 +131,7 @@ echo "Suyama test on 19,694-digit cofactor of F16 (Brent & Crandall, 1996, 2 kno
 "
 cofact -sep 16 825753601 188981757975021318420037633 
 
-# For F17 - F24, cofact is fairly fast. So normally we would have it perform the Pepin and Suyama 
+# For F17 to F24, cofact is fairly fast. So normally we would have it perform the Pepin and Suyama 
 # tests and then check the mprime proof file A residue.
 # However, we don't really need Pepin results here as most of the interest is in the cofactors, so 
 # only F17 runs the Pepin test, once (mode 2, -cpr option).
@@ -186,7 +188,7 @@ cofact -upr F24.proof -sep 24
 
 # Note the F22 and F24 Pepin tests above will try to use 4 or 8 threads if possible.
 #
-# For F25 - F30, mprime is much faster than cofact. So here we have cofact use the A residue from the 
+# For F25 to F30, mprime is much faster than cofact. So here we have cofact use the A residue from the 
 # mprime proof files and perform the Suyama test.
 # In this mode, the gwnum library is not used. So specifying multiple threads would have no effect on speed.
 
@@ -210,12 +212,12 @@ echo "Suyama test on 161,614,233-digit cofactor of F29 (Mayer, 2022, 1 known fac
 "
 cofact -u F29.proof -sep 29 2405286912458753
 
-# Feel free to try running the following if you have a proof of F30. It isn't efficient to use 
+# Feel free to try running the following if/when you have a proof of F30. It isn't efficient to use 
 # cofact to run Pepin tests at this size.
 
 # echo "Suyama test on 323,228,467-digit cofactor of F30 (Mayer, 2022, 2 known factors):"
 # ./cofact -u F30.proof -sep 30 640126220763137 1095981164658689
-# # N.B. F30 proof file not generated yet; mprime requires AVX-512 to run on exponents this large
+# # N.B. F30 proof file not generated yet; mprime requires AVX-512 to run on exponents this large.
 
-# Fermat numbers F31 and beyond are not supported by gwnum; Mlucas does not yet generate proofs
+# Fermat numbers F31 and beyond are not supported by gwnum; Mlucas does not yet generate proofs.
 
