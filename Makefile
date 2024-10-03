@@ -2,12 +2,12 @@
 # installed at the system level, and requires symbolic links to the following gwnum and 
 # Prime95/mprime files from the source:
 #
-# p95v30 directory:
+# p95v3019 directory:
 #	common.h exponentiate.c exponentiate.h proof_hash.c sha3.c sha3.h
 # gwnum  directory:
 #	giants.h gwcommon.h gwini.h gwnum.a gwnum.h gwthread.h gwutil.h
 #
-# To make this easy, either unzip cofact inside the gwnum directory, or cd p95v30.../gwnum 
+# To make this easy, either unzip cofact inside the gwnum directory, or cd p95v3019.../gwnum 
 # and run:
 #	git clone --branch cxc https://github.com/primesearch/cofact.git
 #
@@ -16,7 +16,7 @@
 # to compile gwnum.a for your 64bit [Mac|Linux|Win|...] system.
 #
 # Once that is done, you may proceed to:
-#	cd cofact; bash cmake.sh
+#	cd cofact; bash cmake.sh ../..
 #
 # The shell script creates symbolic links to the gwnum files above, then runs make on this Makefile.
 #
