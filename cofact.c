@@ -6,14 +6,23 @@
  * Authors: Gary B. Gostin
  *          Catherine X. Cowie (1catherine dot cowie at gmail dot com)
  *
- * Copyrights: this program is (C) 2023-2024 Gostin and Cowie under the Creative Commons Zero
- *             licence, we will not be responsible for whether you find this work useful, or whether
- *             it opens a portal to another dystopian dimension where your computer used to be.
+ * Copyrights: this program is (C) 2023-2024 Gostin and Cowie under the GPL version 3 licence.
  *
  *             the gwnum library is (C) 2002-24 Mersenne Research, Inc. All rights reserved.
  *
  *             the GMP library is (C) 1991, 1993-2016, 2018-2024 Free Software Foundation, Inc.
  *
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU 
+ * General Public License as published by the Free Software Foundation, either version 3 of the License, or 
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without 
+ * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+ * See the GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along with this program. If not, see 
+ * <https://www.gnu.org/licenses/>.
+ * 
  * Values: F is the Fermat number, 2^2^m + 1 = Q x C, Q is the product of known prime factors, 
  * C is the remaining cofactor. The exponent m produces huge untestable Fermats beyond m = 30.
  *
