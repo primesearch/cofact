@@ -93,14 +93,23 @@ Using `git` you may switch between the two versions, prior to the build instruct
 cd cofact; git switch [main|cxc]
 ```
 ## Copyright
-This program is © 2023–2024 Gostin and Cowie under the Creative Commons Zero (CC-0) licence, we 
-will not be responsible for whether you find this work useful, or whether it opens a portal to 
-another hellish dystopian dimension where your computer used to be.
+This program is copyright © 2023–2024 Gostin and Cowie under the GPL v3 licence.
 
 The `gwnum` library, and the proof validation module is © 2002–24 Mersenne Research, Inc, used 
 with permission. All rights reserved.
 
 The GMP library is © 1991, 1993–2016, 2018–2024 Free Software Foundation, Inc.
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU 
+General Public License as published by the Free Software Foundation, either version 3 of the License, or 
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without 
+even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program. If not, see 
+<https://www.gnu.org/licenses/>.
 
 ## Rationale
 When running very long calculations such as testing a number for primality, one approach 
@@ -180,11 +189,11 @@ Most of the smaller calculations in `cofact` use the GNU Multiple Precision (GMP
 library, however for the heavy lifting of modular squarings required by the Pépin test or 
 Fermat-PRP test, the `gwnum` library provides better, multi-threaded performance. `cofact` 
 does not save interim results however, so for any Mersenne exponent greater than a million, 
-a dedicated piece of software such as `Prime95` or `gpuOwL` will provide save and restart 
+a dedicated piece of software such as `mprime` or `gpuOwL` will provide save and restart 
 functionality, and may generate a proof which `cofact` can then utilise to rerun the Suyama 
 test whenever new factors are discovered.
 ### Proof files
-Prime95 is capable of generating verifiable delay function proof files for any Mersenne 
+`mprime` is capable of generating verifiable delay function proof files for any Mersenne 
 exponent larger than $105,000$ (though the source code readily permits files to be generated 
 for smaller exponents if desired). For Mersennes, the `-k` option allows `cofact` to read the 
 proof description included in a proof’s header to obtain the list of factors that were known 
@@ -193,7 +202,7 @@ when the proof was created, if these were specified.
 For Fermat exponents, proof files have been furnished for almost all of the smaller Fermat 
 numbers that have yet to be fully factored (or factored at all), from $F_{12}$ up to $F_{29}$, 
 available for download from the co-author’s [website](https://64ordle.au/fermat/). 
-If you wish to use Prime95 to generate a proof for $F_{30}$, we would be 
+If you wish to use `mprime` to generate a proof for $F_{30}$, we would be 
 [most interested](https://www.mersenneforum.org/node/17112/page3)
 in knowing about it (however it is not a task for the faint-hearted).
 ### Residues
