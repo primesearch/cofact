@@ -76,9 +76,9 @@ Mode 3 can be used to test a Fermat cofactor using the Suyama A residue stored i
 ```bash
 cofact -upr F14.proof 14 116928085873074369829035993834596371340386703423373313
 ```
-Mode 3 avoids the lengthy Pépin calculation, allowing a cofactor to be tested in a matter of minutes even for Fermat numbers as large as $F_{29}$. To enable yourself to test the resulting cofactor after the next factor of $F_{14}$ through $F_{29}$ is discovered, download the $F_{14}$ through $F_{29}$ proof files from Catherine's excellent [website](https://64ordle.au/fermat/).
+Mode 3 avoids the lengthy Pépin calculation, allowing a cofactor to be tested in a matter of minutes even for Fermat numbers as large as $F_{29}$. To enable yourself to test the resulting cofactor after the next factor of $F_{12}$ through $F_{29}$ is discovered, download the $F_{12}$ through $F_{29}$ proof files from Catherine's excellent [website](https://64ordle.au/fermat/).
 
-The cofact distribution includes a script called `run_all` that will run cofact on each Fermat number from $F_0$ through $F_{29}$ using the best method for that number, with "best" meaning reasonably fast. Before running the script, download proof files for $F_{17}$ through $F_{29}$ into the same directory as cofact.
+The cofact distribution includes a script called `run_all` that will run cofact on each Fermat number from $F_0$ through $F_{29}$ using the best mode for that number, with "best" meaning reasonably fast. Before running the script, download proof files for $F_{17}$ through $F_{29}$ into the same directory as cofact.
 
 ## Command line options
 The following command line options are supported by cofact (main branch):
