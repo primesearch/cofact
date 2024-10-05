@@ -6,7 +6,7 @@ primality, or optionally in version 0.9, a small Mersenne number for probable pr
 
 If known factors are given, then the cofactor is likewise tested for probable primality.
 
-`cofact` reports typical hexadecimal Res64 and Selfridge–Hurwitz residues for the Pépin or 
+`cofact` reports typical hexadecimal Res64 and decimal Selfridge–Hurwitz residues for the Pépin or 
 Fermat-PRP tests on Fermat and Mersenne numbers respectively, and the Suyama cofactor test, 
 for comparison with the residues reported by other programs.
 
@@ -159,15 +159,15 @@ The practical computational limit for this sort of testing is reached around $F_
 numbers, and $M_{1,073,741,789}$ for Mersenne numbers.
 
 If $F$ is a Fermat number, we are interested in obtaining the result $P$ of a Pépin test, where 
-$P \equiv b^{\frac 1 2 (F - 1)} \equiv -1$ (mod $F$) if and only if $F$ is prime. Since 
+$P = b^{\frac 1 2 (F - 1)} \equiv -1$ (mod $F$) if and only if $F$ is prime. Since 
 $F = 2^{2^m} + 1$ is the result of $m$ squarings of the number $2$ and adding $1$, $P$ may be 
 obtained by $2^m-1$ squarings of the base $b$, modulo $F$. Pépin’s theorem is a definitive 
-primality test for bases such as 3, 5, 6, and so on. One further modular squaring $A \equiv P^2$ 
+primality test for bases such as 3, 5, 6, and so on. One further modular squaring $A = P^2$ 
 (mod $F$) then follows to prepare for the cofactor test below.
 
 A similar test for Mersenne numbers is _not_ definitive (a different test, the Lucas–Lehmer test is 
 used for that) but serves to determine whether the Mersenne number is _probably_ prime, which is 
-sufficient for our purposes. Here, $R \equiv b^{M - 1} \equiv 1$ (mod $M$) is used to 
+sufficient for our purposes. Here, $R = b^{M - 1} \equiv 1$ (mod $M$) is used to 
 establish probable primality, using Fermat’s little theorem. Since $M = 2^p - 1$, evaluating $R$ 
 requires $p$ squarings of the base $b$ followed by a modular division of $b^2$ to reach the 
 Fermat-PRP result, also described as value $A$ of the cofactor test, which was devised by Hiromi 
@@ -176,8 +176,8 @@ Suyama in 1984 and subsequently improved upon by Hendrik W. Lenstra, Jr.
 ### Suyama cofactor test
 Suyama’s method also utilises Fermat’s little theorem to test the cofactor. If a Fermat number $F$ 
 or Mersenne number $M$ is composite and equal to $Q \times C$, where $Q$ is the product of known 
-factors and $C$ is the cofactor, then having calculated either $A \equiv b^{F-1}$ (mod $F$) or 
-$A \equiv b^{2^{p}-2}$ (mod $M$), we also calculate $B \equiv b^{Q-1}$ modulo $F$ or $M$ 
+factors and $C$ is the cofactor, then having calculated either $A = b^{F-1}$ (mod $F$) or 
+$A = b^{2^{p}-2}$ (mod $M$), we also calculate $B = b^{Q-1}$ modulo $F$ or $M$ 
 respectively; this then allows a comparison by simple subtraction, modulo the cofactor. If 
 $A - B \equiv 0$ (mod $C$)
 then the cofactor is probably prime to the base $b^Q$; otherwise it is composite. Taking the 
@@ -225,7 +225,7 @@ a trailing parameter is permitted per flag.
 Short option   | Long option          | Function
 ---------------|----------------------|---------
 -a             |--all-residues        | Print residues for every modular squaring. (This is not recommended for large exponents.)
--b             |--binary              | Output final residues in binary.
+-b             |--binary              | Output final residues in binary. (This is also not recommended for large exponents.)
 -c _filename_  |--check-proof         | Check a VDF proof by computing the Fermat-PRP/Suyama $A$ residue for direct comparison. (This will be impractically lengthy for large exponents; most often you will want to use `-u` or `--use-proof` below.)
 -d             |--debug               | Print debug information.
 -h             |--help                | Print basic help (`-hv` and `-h -sv` are increasingly verbose).
