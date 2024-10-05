@@ -161,13 +161,13 @@ uint64_t nextprime48 (uint64_t r) {
 // forward to iteration topK.  If the result matches B, then the user PRP test result was misreported.
 
 //int main (int argc, char** argv)
-int verify (char *filename, int verbose)
+int verify (char *filename, int verbose, gwhandle gwdata)
 {
 	FILE	*fd;
 	int	version, i, power, power_mult, prp_base, hashlen, excess_squarings, isPRP, retcode, topK, T, pm;
 	uint64_t h, r;
 	hash256_t rooth, *prevh, thish;
-	gwhandle gwdata;
+//	gwhandle gwdata;
 	gwnum	A, B, M, next_starting_A, saved_output_A, saved_output_B;
 	hash256_t hashA, hashB;
 	mpz_t	mpz_known_factors;
@@ -258,7 +258,7 @@ int verify (char *filename, int verbose)
 		mpz_t	mpz_factor;
 		char	factor[2048];
 		sscanf (p, "/%2047[0-9]", &factor);
-		mpz_init_set_str (mpz_factor, p+1, 10);
+		mpz_init_set_str (mpz_factor, factor, 10);
 		mpz_mul (mpz_known_factors, mpz_known_factors, mpz_factor);
 		mpz_clear (mpz_factor);
 	}
@@ -688,7 +688,7 @@ int verify (char *filename, int verbose)
 #endif
 
 	if (verbose) printf ("Total server processing cost would be %d squarings\n", (int) ceil (gwdata.fft_count / 2.0));
-	if (verbose) printf ("Certification cost is %d squarings\n", T);
+	if (verbose || T > 50000) printf ("Certification cost is %d squarings\n", T);
 //	printf ("Total server processing cost would be %d squarings\n", (int) ceil (gwdata.fft_count / 2.0));
 //	printf ("Certification cost is %d squarings\n", T);
 
