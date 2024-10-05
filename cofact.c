@@ -1556,7 +1556,7 @@ int main (int argc, char **argv) {
     if (super_verbose || (verbose && exp < 2049)) {
         printf ("\nSuyama A == ");
         mpz_out_str (stdout, 10, A);
-        printf (" modulo F%d\n\n", m);
+        if (m > 0) printf (" modulo F%d\n\n", m); else printf (" modulo M%lu\n\n", exp);
     }
 
     if (k_fact > 0 && use_proof_res) printf ("Gerbicz check of proof residue:\n");  // Gerbicz sanity check, if there are known factors
@@ -1694,7 +1694,7 @@ int main (int argc, char **argv) {
         for (i = j - 1; i > 0; i--) {
             x = mpz_tstbit (Q, i);
             if (x == 1 && i > 0 && i < j - 1) {mpz_mul (B, B, GMPbase); mpz_add_ui (tmp, tmp, 1L); }
-            if (debug) {mpz_out_str (stdout, 10, tmp); printf (" ... "); fflush (stdout);}
+            if (debug && verbose) {mpz_out_str (stdout, 10, tmp); printf (" ... "); fflush (stdout);}
             mpz_mul (B, B, B); mpz_mul_ui (tmp, tmp, 2L);
             mpz_tdiv_r (B, B, F);
         }
