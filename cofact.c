@@ -1,6 +1,26 @@
 /*
  * Test the Fermat number for primality. If known factors are given then test the cofactor for probable primality.
  *
+ * Authors: Gary B. Gostin
+ *          Catherine X. Cowie (1catherine dot cowie at gmail dot com)
+ *
+ * Copyrights: this program is (C) 2023-2024 Gostin and Cowie under the GPL version 3 licence.
+ *
+ *             the gwnum library is (C) 2002-24 Mersenne Research, Inc. All rights reserved.
+ *
+ *             the GMP library is (C) 1991, 1993-2016, 2018-2024 Free Software Foundation, Inc.
+ *
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU
+ * General Public License as published by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+ * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program. If not, see
+ * <https://www.gnu.org/licenses/>.
+ *
  * Values: F is the Fermat number (2^2^n + 1), P is the product of known factors, C is the remaining cofactor.
  * Prints Res64 and Selfridge-Hurwitz residues on each step to compare with other programs. The steps are:
  *   Pepin Fermat test:
