@@ -1553,7 +1553,7 @@ int main (int argc, char **argv) {
             printf ("\n");
         } else  printf ("Suyama A residue: length = %d words, %016lx %016lx ... %016lx %016lx\n", len, r_bin[len-1], r_bin[len-2], r_bin[1], r_bin[0]);
     }
-    if (super_verbose || (verbose && m < 12)) {
+    if (super_verbose || (verbose && exp < 2049)) {
         printf ("\nSuyama A == ");
         mpz_out_str (stdout, 10, A);
         printf (" modulo F%d\n\n", m);
