@@ -1,17 +1,17 @@
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:30
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:51
 
 Command line: cofact -h -sv 
 
-  Usage:   cofact [-cpr|--check-proof|-c|-u|--use-proof|-upr filename]
+  Usage:   cofact [-cpr|-c|--check-proof|-upr|-u|--use-proof  filename]
                   [-a|--all-residues|-b|--binary|-d|--debug|-h|--help|-i|--interim-residues]
                   [-k|--known-factors|-m|--mod-c|-o|--octal|-v|--verbose|-x|--hex|--hexadecimal]
-                  [-j|--report-json] [-q|--user|-w|--computer string]
-                  [-p|--iterations number]
+                  [-j|--report-json] [-q|--user|-w|--computer  string]
+                  [-p|--iterations  number]
                   [-sep|--separator]
-                  [-t|--threads number]
-                  [-z|--base number]
+                  [-t|--threads  number]
+                  [-z|--base  number]
                   [-y|--mersenne]      Fermat_or_Mersenne_exponent    [factor_1 factor_2 ...]
 
   Default (mode 1) runs a Pépin primality test or Fermat-PRP test, followed by a Suyama cofactor
@@ -25,33 +25,35 @@ Command line: cofact -h -sv
   factor(s)                Whole number(s) dividing a Mersenne number M = 2^p - 1, p > 2
                            Up to 15 factors are supported (the most known is currently 12)
 
- -cpr filename  or         Mode 2: Read the Suyama A residue from a mprime proof file, and compare
- --check-proof filename    it with the A residue calculated by cofact, then run the Suyama test
- -c filename               Same as -cpr or --check-proof, but -c may be combined with other flags
- -u filename               Same as -upr or --use-proof, but -u may be combined with other flags
- -upr filename  or         Mode 3: Bypass the Pépin test, read the Suyama A residue from a mprime
- --use-proof filename      proof file and use it to complete the Suyama test
+ -cpr  filename  or        Mode 2: Read the Suyama A residue from a mprime proof file, and compare
+ --check-proof  filename   it with the A residue calculated by cofact, then run the Suyama test
+ -c  filename              Same as -cpr or --check-proof, but -c may be combined with other flags
+
+ -upr  filename  or        Mode 3: Bypass the Pépin test, read the Suyama A residue from a mprime
+ --use-proof  filename     proof file and use it to complete the Suyama test
+ -u  filename              Same as -upr or --use-proof, but -u may be combined with other flags
 
  -a, --all-residues        Print residues for every squaring (not recommended for large numbers)
  -b, --binary              Print full residue in binary (also not recommended for large numbers)
  -d, --debug               Print debug information
  -h, --help                Print basic help and exit (-hv and -h -sv give increasingly more info)
  -i, --interim-residues    Special flag for printing certain interim residues (e.g. F8, F17, F22)
- -k, --known-factors       Use currently known prime factors (as of 2012) for Fermat numbers.
-                       **  Do NOT use -k if you believe you have a new Fermat factor to test.   **
+ -k, --known-factors       Use currently known prime factors of Fermat numbers (as of 2012).
+                           If you have a Mersenne proof, the header may list known factors to use.
+                       **  Do NOT use -k if you believe you have a new factor to test.   **
 
  -m, --mod-c               Special flag for reducing Suyama A and B values modulo the cofactor C
  -o, --octal               Additionally print Selfridge-Hurwitz residues in octal
  -v, --verbose             Print more verbose information
  -x, --hex, --hexadecimal  Also print Selfridge-Hurwitz residues in hexadecimal
  -j, --report-json         Enable JSON manual results reporting for Mersenne cofactor tests:
- -w, --user string         This adds a username to the JSON report.
- -q, --computer string     This adds the name of which computer ran the test to the JSON report.
+ -w, --user  string        This adds a username to the JSON report.
+ -q, --computer  string    This adds the name of which computer ran the test to the JSON report.
 
- -p, --iterations number   Print progress every multiple iterations, instead of default 10%
+ -p, --iterations  number  Print progress every multiple iterations, instead of default 10%
  -sep, --separator         Print a separator line at the end of a run to better see multiple runs
- -t, --threads number      Specifies the number of threads to use in the gwnum library
- -z, --base number         Use a different base for the Pépin or Suyama test (default = base 3)
+ -t, --threads  number     Specifies the number of threads to use in the gwnum library
+ -z, --base  number        Use a different base for the Pépin or Suyama test (default = base 3)
                            If the base is unsuitable for a primality test, modes 1 or 2 revert to
                            a Fermat PRobable Prime (PRP) test
 
@@ -61,7 +63,7 @@ Some examples:
     cofact -kc F17.proof -t 2 17  Mode 2 multithreaded check of a proof of F17 using known factors
     cofact -ku F17.proof 17       Mode 3 test skipping the Pépin test, and running cofactor test
 
-    cofact -y 11 23               Mode 1 tests of smallest composite Mersenne with a prime exponent
+    cofact -y 11 23               Mode 1 tests of smallest composite Mersenne with prime exponent
     cofact -c p700001.proof 700001 242220807029231            Mode 2 test of a Mersenne number
     cofact -u p2033873.proof 2033873 38429209233120600953063  Mode 3 test of a Mersenne number
 
@@ -106,21 +108,21 @@ Some examples:
 
   Any of the following flags may be run together as one argument, i.e. as -abcdhijkmopqtuvwxz:
     -a, -b, -i, -m, -o, -p, -x  for various modifications to the Pépin or Suyama test output;
-    -c or -u filename           to either check or use a proof file (but you cannot specify both);
+    -c or -u  filename          to either check or use a proof file (but you cannot specify both);
     -d, -v                      for debug or verbose modes;
     -h or -hv                   for help or verbose help;
-    -k                          to use the known factors for a Fermat number;
+    -k                          to use the known factors for a Fermat number, or if you have a
+                                proof of a Mersenne number, the file header may list known primes;
     -j                          producing a JSON report of a cofactor test (Mersennes only);
-    -w or -q string             adding user or computer strings to JSON report;
-    -t threads                  to use multithreading for the Pépin test;
-    -z base                     to use a non-standard base for the Pépin or Suyama test.
+    -w or -q  string            adding user or computer strings to JSON report;
+    -t  threads                 to use multithreading for the Pépin test;
+    -z  base                    to use a non-standard base for the Pépin or Suyama test.
   Flags that require additional parameters as arguments (-c, -p, -q, -t, -u, -w, -z) cannot be
-  combined as a single flag.
-  The -c, -u, and -z options cannot be used in a combined flag, e.g. -cuz, as each requires a
-  filename or variable to be supplied afterward. Not all possible bases are supported for the
-  Pépin test.
+  combined as a single flag. In addition, if both -c and -u are separately specified (to check
+  or utilise a proof) cofact will report the error and bypass the Pépin or Fermat-PRP test.
+  Not all possible bases are supported for the Pépin test; cofact will attempt to revert to a
+  Fermat-PRP test if the chosen base is unsuitable.
   If -a with either -b and/or -i are used together, cofact will tacitly ignore -b and/or -i.
-  If -c and -u are used as separate flags, cofact will report the error and bypass the Pépin test.
 
   Conversely, the -cpr, -sep, -sv, and -upr flags must be entered separately.
 
@@ -135,23 +137,24 @@ Some examples:
 ****  I cannot stress enough - if you are testing for a newly discovered factor,  ****
 ****  do NOT use the -k flag!                                                     ****
 
-  Gary Gostin's version of cofact will not allow composite factors to be tested. This version does 
-  allow composite factors, and will show whether any known prime factors divide them. (Frequently 
-  ECM is able to find composite factors, which turn out to be products of known factors.) 
+  Gary Gostin's version of cofact will not allow composite factors to be tested. This version does
+  allow composite factors, and will show whether any known prime factors divide them. (Frequently
+  ECM is able to find composite factors, which turn out to be products of known factors.)
 
-  If you are running cofactor tests on Mersennes, cofact will have no known factors stored, and 
-  so cannot detect whether a composite factor is comprised of known factors. It will tell you if 
-  a factor is composite, in which case you are strongly encouraged to check the divisibility of 
-  any known factors of that Mersenne.
+  If you are running cofactor tests on Mersennes, cofact will have no known factors stored. If
+  you have a proof file, the header may list known factors which cofact can read, using the -k
+  flag, but this cannot certainly account for all possibilities or discovery of new factors.
+  cofact will inform you whether a factor you supply is composite, in which case you are strongly
+  encouraged to check its divisibility by any known factors of that Mersenne.
 
   Other notes:
 
       You cannot test F0. (It doesn't need testing. Try cofact 0 if you don't believe me.)
-      You cannot test F31 or greater with cofact. (Yet. Preparations are afoot.)
+      You cannot test F31 or greater with cofact. (Yet.)
       Testing F30 in mode 1 or 2 requires an x86 family processor with AVX-512 extensions.
-      Using proof files for F21 and above is highly advisable. Proofs for F14 to F29 are available 
-      from:
-          https://64ordle.au/fermat/ 
+      Using proof files for F21 and above is highly advisable. Proofs for F12 to F29 (which
+      are typically named Fxx.proof, substituting the exponent) are available from:
+          https://64ordle.au/fermat/             (e.g. https://64ordle.au/fermat/F12.proof)
 
   Results of historical tests cited in my essay:
 
@@ -173,24 +176,24 @@ Some examples:
 1640: Pierre de Fermat found F0 to F4 to be prime:
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:30
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:51
 
 Command line: cofact 0 
 
 The Pépin test cannot be run on Fermat number F0 = 3
 F0 is prime!
 
-Run ended: Monday 06 May 2024 10:11:30, Wall time = 0:00:00.000749 (HH:MM:SS.us)
+Run ended: Saturday 05 October 2024 10:01:51, Wall time = 0:00:00.000540 (HH:MM:SS.us)
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:30
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:51
 
 Command line: cofact 1 
 
-Testing F1 for primality using the Pépin test
 Using 1 threads in gwnum library
+Testing F1 for primality using the Pépin test
 Calculating 1 modular squaring iterations from base 3:
       Pépin residue mod F1: 0x000000004          4
 
@@ -199,16 +202,16 @@ Suyama    A residue mod F1: 0x000000001          1
 
 Factorisation: F1 = p1
 
-Run ended: Monday 06 May 2024 10:11:30, Wall time = 0:00:00.025 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:51, Wall time = 0:00:00.024 (HH:MM:SS.ms)
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:30
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:51
 
 Command line: cofact 2 
 
-Testing F2 for primality using the Pépin test
 Using 1 threads in gwnum library
+Testing F2 for primality using the Pépin test
 Calculating 3 modular squaring iterations from base 3:
       Pépin residue mod F2: 0x000000010         16
 
@@ -217,16 +220,16 @@ Suyama    A residue mod F2: 0x000000001          1
 
 Factorisation: F2 = p2
 
-Run ended: Monday 06 May 2024 10:11:30, Wall time = 0:00:00.026 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:51, Wall time = 0:00:00.024 (HH:MM:SS.ms)
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:30
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:51
 
 Command line: cofact -i 3 
 
-Testing F3 for primality using the Pépin test
 Using 1 threads in gwnum library
+Testing F3 for primality using the Pépin test
 Calculating 7 modular squaring iterations from base 3:
          3  residue mod F3: 0x000000088        136
       Pépin residue mod F3: 0x000000100        256
@@ -236,16 +239,16 @@ Suyama    A residue mod F3: 0x000000001          1
 
 Factorisation: F3 = p3
 
-Run ended: Monday 06 May 2024 10:11:30, Wall time = 0:00:00.033 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:51, Wall time = 0:00:00.025 (HH:MM:SS.ms)
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:30
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:51
 
 Command line: cofact -i -sep 4 
 
-Testing F4 for primality using the Pépin test
 Using 1 threads in gwnum library
+Testing F4 for primality using the Pépin test
 Calculating 15 modular squaring iterations from base 3:
         10  residue mod F4: 0x000002020       8224
       Pépin residue mod F4: 0x000010000      65536
@@ -255,23 +258,23 @@ Suyama    A residue mod F4: 0x000000001          1
 
 Factorisation: F4 = p5
 
-Run ended: Monday 06 May 2024 10:11:30, Wall time = 0:00:00.025 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:51, Wall time = 0:00:00.024 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Example of Suyama test on F5 factor, 641 (Euler, 1732):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:30
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:51
 
 Command line: cofact -amv -sep 5 641 
 
-Testing F5 for primality using the Pépin test
 Using 1 threads in gwnum library
 fft_description: Barrett reduction FMA3 FFT length 32
 fftlen = 32
 near_fft_limit = 0
 
+Testing F5 for primality using the Pépin test
 Calculating 31 modular squaring iterations from base 3:
          1  residue mod F5: 0x000000009          9
          2  residue mod F5: 0x000000051         81
@@ -308,8 +311,7 @@ Calculating 31 modular squaring iterations from base 3:
         29  residue mod F5: 0x08C87A27F 2357699199
         30  residue mod F5: 0x063F2596A 1676826986
 
-Pépin P5 residue: 00000000009d894f
-
+Pépin P5 residue: 00000000009d894f 
       Pépin residue mod F5: 0x0009D894F   10324303
 
 P5 == 10324303 modulo F5
@@ -321,8 +323,7 @@ Pépin residue passes check.
 
 F5 is composite.
 
-Suyama A residue: 00000000b48b4570
-
+Suyama A residue: 00000000b48b4570 
 
 Suyama A == 3029026160 modulo F5
 
@@ -343,19 +344,19 @@ F5 cofactor is (probably) prime!
 
 Factorisation: F5 = p3 * prp7
 
-Run ended: Monday 06 May 2024 10:11:30, Wall time = 0:00:00.025 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:51, Wall time = 0:00:00.025 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Example of Suyama test on F5 factor, 6700417 (Euler, 1732):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:30
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:51
 
 Command line: cofact -m -sep 5 6700417 
 
-Testing F5 for primality using the Pépin test
 Using 1 threads in gwnum library
+Testing F5 for primality using the Pépin test
 Calculating 31 modular squaring iterations from base 3:
       Pépin residue mod F5: 0x0009D894F   10324303
 
@@ -379,21 +380,21 @@ F5 cofactor is (probably) prime!
 
 Factorisation: F5 = p7 * prp3
 
-Run ended: Monday 06 May 2024 10:11:30, Wall time = 0:00:00.027 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:51, Wall time = 0:00:00.024 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:30
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:51
 
 Command line: cofact -imv -sep 6 274177 
 
-Testing F6 for primality using the Pépin test
 Using 1 threads in gwnum library
 fft_description: Barrett reduction FMA3 FFT length 32
 fftlen = 32
 near_fft_limit = 0
 
+Testing F6 for primality using the Pépin test
 Calculating 63 modular squaring iterations from base 3:
 Interim residues:                       |      Selfridge - Hurwitz residues
 Iteration              mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -401,8 +402,7 @@ Iteration              mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
 
 3^2^56 == 15358084129163170687 modulo F6
 
-Pépin P6 residue: a497f7120f395e35
-
+Pépin P6 residue: a497f7120f395e35 
       Pépin residue: 0xA497F7120F395E35 |   8845352501   9017941414   9190530327
 
 P6 == 11860219800640380469 modulo F6
@@ -414,8 +414,7 @@ Pépin residue passes check.
 
 F6 is composite.
 
-Suyama A residue: 79763c94c301a5f2
-
+Suyama A residue: 79763c94c301a5f2 
 
 Suyama A == 8752249535465629170 modulo F6
 
@@ -438,17 +437,17 @@ F6 cofactor is (probably) prime!
 
 Factorisation: F6 = p6 * prp14
 
-Run ended: Monday 06 May 2024 10:11:30, Wall time = 0:00:00.029 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:52, Wall time = 0:00:00.024 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:30
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:52
 
 Command line: cofact -m -sep 6 67280421310721 
 
-Testing F6 for primality using the Pépin test
 Using 1 threads in gwnum library
+Testing F6 for primality using the Pépin test
 Calculating 63 modular squaring iterations from base 3:
                                         |      Selfridge - Hurwitz residues
                        mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -476,23 +475,23 @@ F6 cofactor is (probably) prime!
 
 Factorisation: F6 = p14 * prp6
 
-Run ended: Monday 06 May 2024 10:11:30, Wall time = 0:00:00.026 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:52, Wall time = 0:00:00.025 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Pepin test on F7 (1905); note Morehead's residue = P7 + 1, while Western's is 3^2^119 mod F7:
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:30
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:52
 
 Command line: cofact -iov -sep 7 59649589127497217 
 
-Testing F7 for primality using the Pépin test
 Using 1 threads in gwnum library
 fft_description: Barrett reduction FMA3 FFT length 32
 fftlen = 32
 near_fft_limit = 0
 
+Testing F7 for primality using the Pépin test
 Calculating 127 modular squaring iterations from base 3:
 Interim residues:                       |      Selfridge - Hurwitz residues
 Iteration              mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -501,8 +500,7 @@ Iteration              mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
 
 3^2^119 == 274833983259351586250521000256994228317 modulo F7
 
-Pépin P7 residue: 5357a2bf73903a6b 95984e80e902c504
-
+Pépin P7 residue: 5357a2bf73903a6b 95984e80e902c504 
       Pépin residue: 0x95984E80E902C504 |   3909272836  44591026080   5799525263 (decimal)
       Pépin residue: 0x95984E80E902C504 | 035100542404 514165207640 053153335617 (octal)
 
@@ -515,8 +513,7 @@ Pépin residue passes check.
 
 F7 is composite.
 
-Suyama A residue: 23be69e67bf44d86 7c36d29f9594a24b
-
+Suyama A residue: 23be69e67bf44d86 7c36d29f9594a24b 
 
 Suyama A == 47511664169441434718291075092691853899 modulo F7
 
@@ -542,17 +539,17 @@ F7 cofactor is (probably) prime!
 
 Factorisation: F7 = p17 * prp22
 
-Run ended: Monday 06 May 2024 10:11:30, Wall time = 0:00:00.025 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:52, Wall time = 0:00:00.025 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:30
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:52
 
 Command line: cofact -m -sep 7 5704689200685129054721 
 
-Testing F7 for primality using the Pépin test
 Using 1 threads in gwnum library
+Testing F7 for primality using the Pépin test
 Calculating 127 modular squaring iterations from base 3:
                                         |      Selfridge - Hurwitz residues
                        mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -580,23 +577,23 @@ F7 cofactor is (probably) prime!
 
 Factorisation: F7 = p22 * prp17
 
-Run ended: Monday 06 May 2024 10:11:30, Wall time = 0:00:00.025 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:52, Wall time = 0:00:00.025 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Pepin test on F8 (1909); note Morehead & Western's result is the interim residue at iteration 246:
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:30
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:52
 
 Command line: cofact -iov -sep 8 1238926361552897 
 
-Testing F8 for primality using the Pépin test
 Using 1 threads in gwnum library
 fft_description: Barrett reduction FMA3 FFT length 64
 fftlen = 64
 near_fft_limit = 0
 
+Testing F8 for primality using the Pépin test
 Calculating 255 modular squaring iterations from base 3:
 Interim residues:                       |      Selfridge - Hurwitz residues
 Iteration              mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -605,8 +602,7 @@ Iteration              mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
 
 3^2^246 == 36481445106241549041743091260464972368896526668121542479669252869581546330942 modulo F8
 
-Pépin P8 residue: 0cf7370ead55fcaa e366cd8abfd4ff82 c782baa2dbec639b 6507e50ac84d66b3
-
+Pépin P8 residue: 0cf7370ead55fcaa e366cd8abfd4ff82 c782baa2dbec639b 6507e50ac84d66b3 
       Pépin residue: 0x6507E50AC84D66B3 |  46310188723  35403253324  30627284506 (decimal)
       Pépin residue: 0x6507E50AC84D66B3 | 531023263263 407614543114 344141643032 (octal)
 
@@ -619,8 +615,7 @@ Pépin residue passes check.
 
 F8 is composite.
 
-Suyama A residue: fa0158fb809fd118 5af4f647cf7a7b43 e166779867281430 bd369db0333bdab9
-
+Suyama A residue: fa0158fb809fd118 5af4f647cf7a7b43 e166779867281430 bd369db0333bdab9 
 
 Suyama A == 113080593127052224644745291961064595403241347689552251078258028018246279223993 modulo F8
 
@@ -646,17 +641,17 @@ F8 cofactor is (probably) prime!
 
 Factorisation: F8 = p16 * prp62
 
-Run ended: Monday 06 May 2024 10:11:30, Wall time = 0:00:00.026 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:52, Wall time = 0:00:00.025 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:30
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:52
 
 Command line: cofact -m -sep 8 93461639715357977769163558199606896584051237541638188580280321 
 
-Testing F8 for primality using the Pépin test
 Using 1 threads in gwnum library
+Testing F8 for primality using the Pépin test
 Calculating 255 modular squaring iterations from base 3:
                                         |      Selfridge - Hurwitz residues
                        mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -684,23 +679,23 @@ F8 cofactor is (probably) prime!
 
 Factorisation: F8 = p62 * prp16
 
-Run ended: Monday 06 May 2024 10:11:30, Wall time = 0:00:00.026 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:52, Wall time = 0:00:00.035 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 148-digit cofactor of F9 (Brillhart, 1967; 1 known factor):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:30
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:52
 
 Command line: cofact -iv -sep 9 2424833 
 
-Testing F9 for primality using the Pépin test
 Using 1 threads in gwnum library
 fft_description: negacyclic FMA3 FFT length 32
 fftlen = 32
 near_fft_limit = 0
 
+Testing F9 for primality using the Pépin test
 Calculating 511 modular squaring iterations from base 3:
 Interim residues:                       |      Selfridge - Hurwitz residues
 Iteration              mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -744,19 +739,19 @@ F9 cofactor is composite, and is not a prime power
 
 Factorisation: F9 = p7 * c148
 
-Run ended: Monday 06 May 2024 10:11:30, Wall time = 0:00:00.037 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:52, Wall time = 0:00:00.034 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 F9 is completely factored with 3 factors (largest factor with 99 digits):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:30
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:52
 
 Command line: cofact -m -sep 9 2424833 7455602825647884208337395736200454918783366342657 
 
-Testing F9 for primality using the Pépin test
 Using 1 threads in gwnum library
+Testing F9 for primality using the Pépin test
 Calculating 511 modular squaring iterations from base 3:
                                         |      Selfridge - Hurwitz residues
                        mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -786,24 +781,24 @@ F9 cofactor is (probably) prime!
 
 Factorisation: F9 = p7 * p49 * prp99
 
-Run ended: Monday 06 May 2024 10:11:30, Wall time = 0:00:00.026 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:52, Wall time = 0:00:00.027 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Pepin test on F10 (Robinson, 1952, Lehmer, 1953):
 Suyama test on 291-digit cofactor of F10 (Brillhart, 1967; 2 known factors):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:30
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:52
 
 Command line: cofact -iov -sep 10 45592577 6487031809 
 
-Testing F10 for primality using the Pépin test
 Using 1 threads in gwnum library
 fft_description: negacyclic FMA3 FFT length 64
 fftlen = 64
 near_fft_limit = 0
 
+Testing F10 for primality using the Pépin test
 Calculating 1023 modular squaring iterations from base 3:
 Interim residues:                       |      Selfridge - Hurwitz residues
 Iteration              mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -857,19 +852,19 @@ F10 cofactor is composite, and is not a prime power
 
 Factorisation: F10 = p8 * p10 * c291
 
-Run ended: Monday 06 May 2024 10:11:30, Wall time = 0:00:00.032 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:52, Wall time = 0:00:00.026 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 F10 is completely factored with 4 factors (largest factor with 252 digits):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:30
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:52
 
 Command line: cofact -m -sep 10 45592577 6487031809 4659775785220018543264560743076778192897 
 
-Testing F10 for primality using the Pépin test
 Using 1 threads in gwnum library
+Testing F10 for primality using the Pépin test
 Calculating 1023 modular squaring iterations from base 3:
                                         |      Selfridge - Hurwitz residues
                        mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -900,23 +895,23 @@ F10 cofactor is (probably) prime!
 
 Factorisation: F10 = p8 * p10 * p40 * prp252
 
-Run ended: Monday 06 May 2024 10:11:31, Wall time = 0:00:00.028 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:52, Wall time = 0:00:00.025 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 606-digit cofactor of F11 (Wagstaff, 2 known factors):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:31
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:52
 
 Command line: cofact -iv -sep 11 319489 974849 
 
-Testing F11 for primality using the Pépin test
 Using 1 threads in gwnum library
 fft_description: negacyclic FMA3 FFT length 128
 fftlen = 128
 near_fft_limit = 0
 
+Testing F11 for primality using the Pépin test
 Calculating 2047 modular squaring iterations from base 3:
 Interim residues:                       |      Selfridge - Hurwitz residues
 Iteration              mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -965,19 +960,19 @@ F11 cofactor is composite, and is not a prime power
 
 Factorisation: F11 = p6 * p6 * c606
 
-Run ended: Monday 06 May 2024 10:11:31, Wall time = 0:00:00.029 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:52, Wall time = 0:00:00.028 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 F11 is completely factored with 5 factors (largest factor with 564 digits):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:31
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:52
 
 Command line: cofact -m -sep 11 319489 974849 167988556341760475137 3560841906445833920513 
 
-Testing F11 for primality using the Pépin test
 Using 1 threads in gwnum library
+Testing F11 for primality using the Pépin test
 Calculating 2047 modular squaring iterations from base 3:
                                         |      Selfridge - Hurwitz residues
                        mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -1009,23 +1004,23 @@ F11 cofactor is (probably) prime!
 
 Factorisation: F11 = p6 * p6 * p21 * p22 * prp564
 
-Run ended: Monday 06 May 2024 10:11:31, Wall time = 0:00:00.029 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:52, Wall time = 0:00:00.030 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 1,202-digit cofactor of F12 (Wagstaff, 4 known factors):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:31
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:52
 
 Command line: cofact -iv -sep 12 114689 26017793 63766529 190274191361 
 
-Testing F12 for primality using the Pépin test
 Using 1 threads in gwnum library
 fft_description: negacyclic FMA3 FFT length 256
 fftlen = 256
 near_fft_limit = 0
 
+Testing F12 for primality using the Pépin test
 Calculating 4095 modular squaring iterations from base 3:
 Interim residues:                       |      Selfridge - Hurwitz residues
 Iteration              mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -1068,19 +1063,19 @@ F12 cofactor is composite, and is not a prime power
 
 Factorisation: F12 = p6 * p8 * p8 * p12 * c1202
 
-Run ended: Monday 06 May 2024 10:11:31, Wall time = 0:00:00.038 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:52, Wall time = 0:00:00.029 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 1,187-digit cofactor of F12 (Baillie, 1986, 5 known factors):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:31
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:52
 
 Command line: cofact -sep 12 114689 26017793 63766529 190274191361 1256132134125569 
 
-Testing F12 for primality using the Pépin test
 Using 1 threads in gwnum library
+Testing F12 for primality using the Pépin test
 Calculating 4095 modular squaring iterations from base 3:
                                         |      Selfridge - Hurwitz residues
                        mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -1112,19 +1107,19 @@ F12 cofactor is composite, and is not a prime power
 
 Factorisation: F12 = p6 * p8 * p8 * p12 * p16 * c1187
 
-Run ended: Monday 06 May 2024 10:11:31, Wall time = 0:00:00.028 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:52, Wall time = 0:00:00.029 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 1,133-digit cofactor of F12 (Vang, Batalov et al., 2010, 6 known factors):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:31
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:52
 
 Command line: cofact -sep 12 114689 26017793 63766529 190274191361 1256132134125569 568630647535356955169033410940867804839360742060818433 
 
-Testing F12 for primality using the Pépin test
 Using 1 threads in gwnum library
+Testing F12 for primality using the Pépin test
 Calculating 4095 modular squaring iterations from base 3:
                                         |      Selfridge - Hurwitz residues
                        mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -1156,24 +1151,24 @@ F12 cofactor is composite, and is not a prime power
 
 Factorisation: F12 = p6 * p8 * p8 * p12 * p16 * p54 * c1133
 
-Run ended: Monday 06 May 2024 10:11:31, Wall time = 0:00:00.029 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:52, Wall time = 0:00:00.039 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Pepin test on F13 (Paxson, 1960):
 Suyama test on 2,454-digit cofactor of F13 (Wagstaff, 1 known factor):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:31
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:52
 
 Command line: cofact -iov -sep 13 2710954639361 
 
-Testing F13 for primality using the Pépin test
 Using 1 threads in gwnum library
 fft_description: negacyclic FMA3 FFT length 512
 fftlen = 512
 near_fft_limit = 0
 
+Testing F13 for primality using the Pépin test
 Calculating 8191 modular squaring iterations from base 3:
 Interim residues:                       |      Selfridge - Hurwitz residues
 Iteration              mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -1218,19 +1213,19 @@ F13 cofactor is composite, and is not a prime power
 
 Factorisation: F13 = p13 * c2454
 
-Run ended: Monday 06 May 2024 10:11:31, Wall time = 0:00:00.041 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:52, Wall time = 0:00:00.035 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 2,436-digit cofactor of F13 (Lenstra, Keller, 1991, 2 known factors):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:31
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:52
 
 Command line: cofact -sep 13 2710954639361 2663848877152141313 
 
-Testing F13 for primality using the Pépin test
 Using 1 threads in gwnum library
+Testing F13 for primality using the Pépin test
 Calculating 8191 modular squaring iterations from base 3:
                                         |      Selfridge - Hurwitz residues
                        mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -1260,19 +1255,19 @@ F13 cofactor is composite, and is not a prime power
 
 Factorisation: F13 = p13 * p19 * c2436
 
-Run ended: Monday 06 May 2024 10:11:31, Wall time = 0:00:00.036 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:52, Wall time = 0:00:00.038 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 2,417-digit cofactor of F13 (Crandall, 1991, 3 known factors):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:31
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:52
 
 Command line: cofact -sep 13 2710954639361 2663848877152141313 3603109844542291969 
 
-Testing F13 for primality using the Pépin test
 Using 1 threads in gwnum library
+Testing F13 for primality using the Pépin test
 Calculating 8191 modular squaring iterations from base 3:
                                         |      Selfridge - Hurwitz residues
                        mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -1302,19 +1297,19 @@ F13 cofactor is composite, and is not a prime power
 
 Factorisation: F13 = p13 * p19 * p19 * c2417
 
-Run ended: Monday 06 May 2024 10:11:31, Wall time = 0:00:00.038 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:52, Wall time = 0:00:00.038 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 2,391-digit cofactor of F13 (Brent, 1995, 4 known factors):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:31
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:52
 
 Command line: cofact -sep 13 2710954639361 2663848877152141313 3603109844542291969 319546020820551643220672513 
 
-Testing F13 for primality using the Pépin test
 Using 1 threads in gwnum library
+Testing F13 for primality using the Pépin test
 Calculating 8191 modular squaring iterations from base 3:
                                         |      Selfridge - Hurwitz residues
                        mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -1344,24 +1339,24 @@ F13 cofactor is composite, and is not a prime power
 
 Factorisation: F13 = p13 * p19 * p19 * p27 * c2391
 
-Run ended: Monday 06 May 2024 10:11:31, Wall time = 0:00:00.039 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:52, Wall time = 0:00:00.042 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Pepin test on F14 (Hurwitz & Selfridge, 1961):
 Suyama test on 4,880-digit cofactor of F14 (Lipp, Silverman, Rajala, Moore, 2010, 1 known factor):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:31
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:52
 
 Command line: cofact -iov -sep 14 116928085873074369829035993834596371340386703423373313 
 
-Testing F14 for primality using the Pépin test
 Using 1 threads in gwnum library
 fft_description: negacyclic FMA3 FFT length 1K
 fftlen = 1024
 near_fft_limit = 0
 
+Testing F14 for primality using the Pépin test
 Calculating 16383 modular squaring iterations from base 3:
 Interim residues:                       |      Selfridge - Hurwitz residues
 Iteration              mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -1400,23 +1395,23 @@ F14 cofactor is composite, and is not a prime power
 
 Factorisation: F14 = p54 * c4880
 
-Run ended: Monday 06 May 2024 10:11:31, Wall time = 0:00:00.075 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:52, Wall time = 0:00:00.074 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 9,856-digit cofactor of F15 (Hiromi Suyama, 1984, 1 known factor):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:31
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:52
 
 Command line: cofact -iv -sep 15 1214251009 
 
-Testing F15 for primality using the Pépin test
 Using 1 threads in gwnum library
 fft_description: negacyclic FMA3 FFT length 2K
 fftlen = 2048
 near_fft_limit = 0
 
+Testing F15 for primality using the Pépin test
 Calculating 32767 modular squaring iterations from base 3:
 Interim residues:                       |      Selfridge - Hurwitz residues
 Iteration              mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -1452,19 +1447,19 @@ F15 cofactor is composite, and is not a prime power
 
 Factorisation: F15 = p10 * c9856
 
-Run ended: Monday 06 May 2024 10:11:31, Wall time = 0:00:00.211 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:52, Wall time = 0:00:00.201 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 9,840-digit cofactor of F15 (Suyama, Baillie, 1987, 2 known factors):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:31
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:52
 
 Command line: cofact -sep 15 1214251009 2327042503868417 
 
-Testing F15 for primality using the Pépin test
 Using 1 threads in gwnum library
+Testing F15 for primality using the Pépin test
 Calculating 32767 modular squaring iterations from base 3:
                                         |      Selfridge - Hurwitz residues
                        mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -1493,19 +1488,19 @@ F15 cofactor is composite, and is not a prime power
 
 Factorisation: F15 = p10 * p16 * c9840
 
-Run ended: Monday 06 May 2024 10:11:31, Wall time = 0:00:00.218 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:53, Wall time = 0:00:00.206 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 9,808-digit cofactor of F15 (Brent & Crandall, 1997, 3 known factors):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:31
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:53
 
 Command line: cofact -sep 15 1214251009 2327042503868417 168768817029516972383024127016961 
 
-Testing F15 for primality using the Pépin test
 Using 1 threads in gwnum library
+Testing F15 for primality using the Pépin test
 Calculating 32767 modular squaring iterations from base 3:
                                         |      Selfridge - Hurwitz residues
                        mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -1534,23 +1529,23 @@ F15 cofactor is composite, and is not a prime power
 
 Factorisation: F15 = p10 * p16 * p33 * c9808
 
-Run ended: Monday 06 May 2024 10:11:32, Wall time = 0:00:00.234 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:53, Wall time = 0:00:00.227 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 19,720-digit cofactor of F16 (Baillie, 1987, 1 known factor):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:32
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:53
 
 Command line: cofact -iv -sep 16 825753601 
 
-Testing F16 for primality using the Pépin test
 Using 1 threads in gwnum library
 fft_description: negacyclic FMA3 FFT length 4K
 fftlen = 4096
 near_fft_limit = 0
 
+Testing F16 for primality using the Pépin test
 Calculating 65535 modular squaring iterations from base 3:
 Interim residues:                       |      Selfridge - Hurwitz residues
 Iteration              mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -1584,19 +1579,19 @@ F16 cofactor is composite, and is not a prime power
 
 Factorisation: F16 = p9 * c19720
 
-Run ended: Monday 06 May 2024 10:11:32, Wall time = 0:00:00.785 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:54, Wall time = 0:00:00.735 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 19,694-digit cofactor of F16 (Brent & Crandall, 1996, 2 known factors):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:32
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:54
 
 Command line: cofact -sep 16 825753601 188981757975021318420037633 
 
-Testing F16 for primality using the Pépin test
 Using 1 threads in gwnum library
+Testing F16 for primality using the Pépin test
 Calculating 65535 modular squaring iterations from base 3:
                                         |      Selfridge - Hurwitz residues
                        mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
@@ -1624,62 +1619,62 @@ F16 cofactor is composite, and is not a prime power
 
 Factorisation: F16 = p9 * p27 * c19694
 
-Run ended: Monday 06 May 2024 10:11:33, Wall time = 0:00:00.809 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:54, Wall time = 0:00:00.774 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Selfridge-Hurwitz (1964) published interim residue of Pepin test at iteration 20:
 Suyama test on 39,444-digit cofactor of F17 (Baillie, 1987, 1 known factor):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:33
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:54
 
 Command line: cofact -ciov F17.proof -sep 17 31065037602817 
 
 Reading residue from proof file: F17.proof
 Proof file description: (F17)/31065037602817/7751061099802522589358967058392886922693580423169
 
-Testing F17 for primality using the Pépin test
 Using 1 threads in gwnum library
 fft_description: negacyclic FMA3 FFT length 8K, Pass1=128, Pass2=64, clm=2
 fftlen = 8192
 near_fft_limit = 0
 
+Testing F17 for primality using the Pépin test
 Calculating 131071 modular squaring iterations from base 3:
 Interim residues:                       |      Selfridge - Hurwitz residues
 Iteration              mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1
         20  residue: 0x5EA8C873F57BE995 |  17003440533  36232946423  14679586793 (decimal)
             residue: 0x5EA8C873F57BE995 | 176536764625 415751561367 155276133751 (octal)
-     13107 ( 10.0%), ms/iter:     0.030 |                 Wall time =    0:00:00 (HH:MM:SS)
+     13107 ( 10.0%), ms/iter:     0.028 |                 Wall time =    0:00:00 (HH:MM:SS)
             residue: 0x6FD69E4F9371FBFE |  66898230270   6073009928   1056334699 (decimal)
             residue: 0x6FD69E4F9371FBFE | 762334375776 055176543410 007675461553 (octal)
-     26214 ( 20.0%), ms/iter:     0.031 |                 Wall time =    0:00:00 (HH:MM:SS)
+     26214 ( 20.0%), ms/iter:     0.029 |                 Wall time =    0:00:00 (HH:MM:SS)
             residue: 0x6337C66ABF65C69C |  46160791196  14078629764   5794335715 (decimal)
             residue: 0x6337C66ABF65C69C | 527731343234 150711553604 053127505743 (octal)
-     39321 ( 30.0%), ms/iter:     0.040 |                 Wall time =    0:00:01 (HH:MM:SS)
+     39321 ( 30.0%), ms/iter:     0.028 |                 Wall time =    0:00:01 (HH:MM:SS)
             residue: 0xB3B67CC0C944E425 |   3376735269  66297536908    660598557 (decimal)
             residue: 0xB3B67CC0C944E425 | 031121162045 755751020614 004727767435 (octal)
-     52428 ( 40.0%), ms/iter:     0.033 |                 Wall time =    0:00:01 (HH:MM:SS)
+     52428 ( 40.0%), ms/iter:     0.028 |                 Wall time =    0:00:01 (HH:MM:SS)
             residue: 0x3D5985401CDCF8EB |    484243691  43733471098  23484751565 (decimal)
             residue: 0x3D5985401CDCF8EB | 003467174353 505655747572 256763157315 (octal)
-     65535 ( 50.0%), ms/iter:     0.030 |                 Wall time =    0:00:02 (HH:MM:SS)
+     65535 ( 50.0%), ms/iter:     0.027 |                 Wall time =    0:00:01 (HH:MM:SS)
             residue: 0x84A5B60A36969D09 |  43865513225  29937990814  11495706617 (decimal)
             residue: 0x84A5B60A36969D09 | 506645516411 337034276236 125514507771 (octal)
-     78642 ( 60.0%), ms/iter:     0.031 |                 Wall time =    0:00:02 (HH:MM:SS)
+     78642 ( 60.0%), ms/iter:     0.028 |                 Wall time =    0:00:02 (HH:MM:SS)
             residue: 0x8F12218449B11F7F |  18416213887  26848839459   5212652564 (decimal)
             residue: 0x8F12218449B11F7F | 211154217577 310024143443 046654542024 (octal)
-     91749 ( 70.0%), ms/iter:     0.031 |                 Wall time =    0:00:02 (HH:MM:SS)
+     91749 ( 70.0%), ms/iter:     0.027 |                 Wall time =    0:00:02 (HH:MM:SS)
             residue: 0x411DB2B3D927E194 |  16528171412  40861458440  14717915782 (decimal)
             residue: 0x411DB2B3D927E194 | 173111760624 460342060010 155520311206 (octal)
-    104856 ( 80.0%), ms/iter:     0.031 |                 Wall time =    0:00:03 (HH:MM:SS)
+    104856 ( 80.0%), ms/iter:     0.027 |                 Wall time =    0:00:02 (HH:MM:SS)
             residue: 0x3120EFB12E470228 |   5071372840  45974090680  17381341592 (decimal)
             residue: 0x3120EFB12E470228 | 045621601050 526421171670 201400434630 (octal)
-    117963 ( 90.0%), ms/iter:     0.031 |                 Wall time =    0:00:03 (HH:MM:SS)
+    117963 ( 90.0%), ms/iter:     0.028 |                 Wall time =    0:00:03 (HH:MM:SS)
             residue: 0xE2F3350094CF93F5 |   2496631797  25660288730   6619167560 (decimal)
             residue: 0xE2F3350094CF93F5 | 022463711765 277136167332 061242075510 (octal)
     131053  residue: 0x1E352A4E455B9BC8 |  61293173704   4669792664  17533462711 (decimal)
             residue: 0x1E352A4E455B9BC8 | 710526715710 042625660630 202504664267 (octal)
-    131070 (100.0%), ms/iter:     0.030 |                 Wall time =    0:00:04 (HH:MM:SS)
+    131070 (100.0%), ms/iter:     0.027 |                 Wall time =    0:00:03 (HH:MM:SS)
             residue: 0xFAC0FC5EF2C45B7C |  64202496892  66043095765  33803778685 (decimal)
             residue: 0xFAC0FC5EF2C45B7C | 736261055574 754036325325 373667135175 (octal)
 Pépin P17 residue: length = 2048 words, 40a3a412945d8df9 ac12724a08be2621 ... 248344f25e9ccef6 5afc1fe36dc81ddd
@@ -1718,14 +1713,14 @@ F17 cofactor is composite, and is not a prime power
 
 Factorisation: F17 = p14 * c39444
 
-Run ended: Monday 06 May 2024 10:11:38, Wall time = 0:00:04.246 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:58, Wall time = 0:00:03.701 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 39,395-digit cofactor of F17 (Chia, Hoeglund, Sorbera, 2011, 2 known factors):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:38
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:58
 
 Command line: cofact -u F17.proof -sep 17 31065037602817 7751061099802522589358967058392886922693580423169 
 
@@ -1753,14 +1748,14 @@ F17 cofactor is composite, and is not a prime power
 
 Factorisation: F17 = p14 * p49 * c39395
 
-Run ended: Monday 06 May 2024 10:11:38, Wall time = 0:00:00.244 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:58, Wall time = 0:00:00.240 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 78,907-digit cofactor of F18 (Chudnovsky twins, 1990, 1 known factor):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:38
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:58
 
 Command line: cofact -u F18.proof -sep 18 13631489 
 
@@ -1787,14 +1782,14 @@ F18 cofactor is composite, and is not a prime power
 
 Factorisation: F18 = p8 * c78907
 
-Run ended: Monday 06 May 2024 10:11:38, Wall time = 0:00:00.044 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:58, Wall time = 0:00:00.042 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 78,884-digit cofactor of F18 (Crandall, 1999, 2 known factors):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:38
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:58
 
 Command line: cofact -u F18.proof -sep 18 13631489 81274690703860512587777 
 
@@ -1822,14 +1817,14 @@ F18 cofactor is composite, and is not a prime power
 
 Factorisation: F18 = p8 * p23 * c78884
 
-Run ended: Monday 06 May 2024 10:11:38, Wall time = 0:00:00.289 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:59, Wall time = 0:00:00.266 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 157,804-digit cofactor of F19 (Crandall, Doenias et al., 1993, 2 known factors):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:38
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:59
 
 Command line: cofact -mu F19.proof -sep 19 70525124609 646730219521 
 
@@ -1860,14 +1855,14 @@ F19 cofactor is composite, and is not a prime power
 
 Factorisation: F19 = p11 * p12 * c157804
 
-Run ended: Monday 06 May 2024 10:11:39, Wall time = 0:00:00.466 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:01:59, Wall time = 0:00:00.425 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 157,770-digit cofactor of F19 (JRK, Kruppa et al., 2009, 3 known factors):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:39
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:01:59
 
 Command line: cofact -u F19.proof -sep 19 70525124609 646730219521 37590055514133754286524446080499713 
 
@@ -1896,14 +1891,14 @@ F19 cofactor is composite, and is not a prime power
 
 Factorisation: F19 = p11 * p12 * p35 * c157770
 
-Run ended: Monday 06 May 2024 10:11:40, Wall time = 0:00:01.280 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:02:00, Wall time = 0:00:01.159 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Omitting Pepin test on F20 (Young & Buell, 1987), we show Suyama A residue from proof:
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:40
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:02:00
 
 Command line: cofact -o -upr F20.proof -sep 20 
 
@@ -1920,14 +1915,14 @@ Suyama    A residue: 0x11BEF945BB1F0767 | 267307603547 337177243734 302262570751
 
 Factorisation: F20 = c315653
 
-Run ended: Monday 06 May 2024 10:11:40, Wall time = 0:00:00.023 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:02:00, Wall time = 0:00:00.022 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 631,294-digit cofactor of F21 (Crandall, Doenias et al., 1993, 1 known factor):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:40
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:02:00
 
 Command line: cofact -mu F21.proof -sep 21 4485296422913 
 
@@ -1955,14 +1950,14 @@ F21 cofactor is composite, and is not a prime power
 
 Factorisation: F21 = p13 * c631294
 
-Run ended: Monday 06 May 2024 10:11:41, Wall time = 0:00:01.160 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:02:01, Wall time = 0:00:01.043 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 1,262,577-digit cofactor of F22 (Domanov, Yamada, 2010, 1 known factor):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:41
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:02:01
 
 Command line: cofact -upr F22.proof -sep 22 64658705994591851009055774868504577 
 
@@ -1988,14 +1983,14 @@ F22 cofactor is composite, and is not a prime power
 
 Factorisation: F22 = p35 * c1262577
 
-Run ended: Monday 06 May 2024 10:11:50, Wall time = 0:00:08.673 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:02:09, Wall time = 0:00:07.473 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 2,525,215-digit cofactor of F23 (Crandall, Mayer et al., 2000, 1 known factor):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:50
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:02:09
 
 Command line: cofact -u F23.proof -sep 23 167772161 
 
@@ -2021,14 +2016,14 @@ F23 cofactor is composite, and is not a prime power
 
 Factorisation: F23 = p9 * c2525215
 
-Run ended: Monday 06 May 2024 10:11:53, Wall time = 0:00:03.328 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:02:12, Wall time = 0:00:02.922 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Omitting Pepin test on F24 (Crandall, Mayer, Papadopoulos, 1999), we show Suyama A residue from proof:
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:53
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:02:12
 
 Command line: cofact -upr F24.proof -sep 24 
 
@@ -2044,14 +2039,14 @@ Suyama    A residue: 0x6EC4A4806BE07FAA |   1809874858  49220810423   7419597027
 
 Factorisation: F24 = c5050446
 
-Run ended: Monday 06 May 2024 10:11:54, Wall time = 0:00:00.797 (HH:MM:SS.ms)
+Run ended: Saturday 05 October 2024 10:02:13, Wall time = 0:00:00.750 (HH:MM:SS.ms)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 10,100,842-digit cofactor of F25 (Yamada, Hoeglund, 2009, 3 known factors):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:11:54
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:02:13
 
 Command line: cofact -u F25.proof -sep 25 25991531462657 204393464266227713 2170072644496392193 
 
@@ -2080,14 +2075,14 @@ F25 cofactor is composite, and is not a prime power
 
 Factorisation: F25 = p14 * p18 * p19 * c10100842
 
-Run ended: Monday 06 May 2024 10:14:27, Wall time = 0:02:33 (HH:MM:SS)
+Run ended: Saturday 05 October 2024 10:04:13, Wall time = 0:02:00 (HH:MM:SS)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 20,201,768-digit cofactor of F26 (Hoeglund, 2009, 1 known factor):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:14:27
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:04:13
 
 Command line: cofact -u F26.proof -sep 26 76861124116481 
 
@@ -2113,14 +2108,14 @@ F26 cofactor is composite, and is not a prime power
 
 Factorisation: F26 = p14 * c20201768
 
-Run ended: Monday 06 May 2024 10:15:46, Wall time = 0:01:18 (HH:MM:SS)
+Run ended: Saturday 05 October 2024 10:05:16, Wall time = 0:01:03 (HH:MM:SS)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 40,403,531-digit cofactor of F27 (Hoeglund, 2010, 2 known factors):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:15:46
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:05:16
 
 Command line: cofact -u F27.proof -sep 27 151413703311361 231292694251438081 
 
@@ -2148,14 +2143,14 @@ F27 cofactor is composite, and is not a prime power
 
 Factorisation: F27 = p15 * p18 * c40403531
 
-Run ended: Monday 06 May 2024 10:23:32, Wall time = 0:07:46 (HH:MM:SS)
+Run ended: Saturday 05 October 2024 10:11:28, Wall time = 0:06:11 (HH:MM:SS)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 80,807,103-digit cofactor of F28 (Mayer, 2022, 1 known factor):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:23:32
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:11:28
 
 Command line: cofact -u F28.proof -sep 28 1766730974551267606529 
 
@@ -2181,14 +2176,14 @@ F28 cofactor is composite, and is not a prime power
 
 Factorisation: F28 = p22 * c80807103
 
-Run ended: Monday 06 May 2024 10:34:16, Wall time = 0:10:43 (HH:MM:SS)
+Run ended: Saturday 05 October 2024 10:20:00, Wall time = 0:08:32 (HH:MM:SS)
 
 ----------------------------------------------------------------------------------------------------
 Suyama test on 161,614,233-digit cofactor of F29 (Mayer, 2022, 1 known factor):
 
 Program to check the primality of a Fermat number and its cofactor: cofact,
-Version 0.75c (May  6 2024 10:10:18)
-Run started: Monday 06 May 2024 10:34:16
+Version 0.9 (Oct  4 2024 07:48:25)
+Run started: Saturday 05 October 2024 10:20:00
 
 Command line: cofact -u F29.proof -sep 29 2405286912458753 
 
@@ -2214,6 +2209,6 @@ F29 cofactor is composite, and is not a prime power
 
 Factorisation: F29 = p16 * c161614233
 
-Run ended: Monday 06 May 2024 10:49:51, Wall time = 0:15:34 (HH:MM:SS)
+Run ended: Saturday 05 October 2024 10:32:28, Wall time = 0:12:27 (HH:MM:SS)
 
 ----------------------------------------------------------------------------------------------------
