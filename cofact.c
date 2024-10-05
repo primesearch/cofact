@@ -216,7 +216,7 @@ void usage (int verbose) {
     printf ("  Usage:   cofact [-cpr|-c|--check-proof|-upr|-u|--use-proof  filename]\n");
     printf ("                  [-a|--all-residues|-b|--binary|-d|--debug|-h|--help|-i|--interim-residues]\n");
     printf ("                  [-k|--known-factors|-m|--mod-c|-o|--octal|-v|--verbose|-x|--hex|--hexadecimal]\n");
-    printf ("                  [-j|--report-json] [-q|--user|-w|--computer  string]\n");
+    printf ("                  [-j|--report-json|-e|--do-not-verify] [-q|--user|-w|--computer  string]\n");
     printf ("                  [-p|--iterations  number]\n");
     printf ("                  [-sep|--separator]\n");
     printf ("                  [-t|--threads  number]\n");
@@ -249,6 +249,7 @@ void usage (int verbose) {
     printf (" -v, --verbose             Print more verbose information\n");
     printf (" -x, --hex, --hexadecimal  Also print Selfridge-Hurwitz residues in hexadecimal\n");
     printf (" -j, --report-json         Enable JSON manual results reporting for Mersenne cofactor tests:\n");
+    printf (" -e, --do-not-verify       If using a proof with -j, suppress the default validation of the proof.\n");
     printf (" -w, --user  string        This adds a username to the JSON report.\n");
     printf (" -q, --computer  string    This adds the name of which computer ran the test to the JSON report.\n\n");
     printf (" -p, --iterations  number  Print progress every multiple iterations, instead of default 10%%\n");
@@ -300,6 +301,7 @@ void usage (int verbose) {
     printf ("    -k                          to use the known factors for a Fermat number, or if you have a\n");
     printf ("                                proof of a Mersenne number, the file header may list known primes;\n");
     printf ("    -j                          producing a JSON report of a cofactor test (Mersennes only);\n");
+    printf ("    -e                          when using a proof, suppress the default validation of the proof;\n");
     printf ("    -w or -q  string            adding user or computer strings to JSON report;\n");
     printf ("    -t  threads                 to use multithreading for the P%lspin test;\n", pe);
     printf ("    -z  base                    to use a non-standard base for the P%lspin or Suyama test.\n", pe);
@@ -374,6 +376,7 @@ int main (int argc, char **argv) {
     int binary;                     // Flags -b, -o, -x to additionally print Selfridge - Hurwitz residues in binary, octal, hexadecimal
     int check_proof_res;            // Flags -c or -cpr to enable checking the mprime proof file A residue
     int debug;                      // Flag -d to enable printing debug information
+    int exclude;                    // Flag -e excludes verification of a proof when generating a JSON result
                                     // Flag -g reserved
     int help;                       // Flag -h for printing help
     int interim;                    // Flag -i to print select interim residues
@@ -498,6 +501,7 @@ int main (int argc, char **argv) {
                             // we add 2, 8, and 16 if -b, -o, and -x flags are set
     check_proof_res = 0;    // Default to not checking a proof A residue
     debug = 0;              // Default to no debug
+    exclude = 0;            // Default to validating proofs
     help = 0;               // Default to bypass help
     interim = 0;            // Default to print no interim residues
     json = 0;               // Default to not printing JSON, or user and computer fields
@@ -538,6 +542,9 @@ int main (int argc, char **argv) {
         } else
         if ((strcmp(argv[argi], "--debug") == 0) || (strcmp(argv[argi], "--DEBUG") == 0)) {
             debug = 1;
+        } else
+        if ((strcmp(argv[argi], "--do-not-verify") == 0) || (strcmp(argv[argi], "--DO-NOT-VERIFY") == 0)) {
+            exclude = 1;
         } else
         if ((strcmp(argv[argi], "--help") == 0) || (strcmp(argv[argi], "--HELP") == 0)) {
             help = 1;
@@ -606,9 +613,9 @@ int main (int argc, char **argv) {
             argi++;
             mpz_set_str(B, argv[argi], 10); 
         } else
-        if (strncmp(argv[argi], "-", 1) == 0) {     // Combined -abcdhijkmopqtuvwxyz flags, processed in alphabetical order
+        if (strncmp(argv[argi], "-", 1) == 0) {     // Combined -abcdehijkmopqtuvwxyz flags, processed in alphabetical order
             z = 0;
-            flags = strpbrk(argv[argi], "aAbBcCdDhHiIjJkKmMoOpPqQtTuUvVwWxXyYzZ");      // We are somewhat tolerant of upper case
+            flags = strpbrk(argv[argi], "aAbBcCdDeEhHiIjJkKmMoOpPqQtTuUvVwWxXyYzZ");      // We are somewhat tolerant of upper case
             if (flags != NULL) {
                 flags = strpbrk(argv[argi], "aA");
                 if (flags != NULL) all_int = 1;
@@ -618,6 +625,8 @@ int main (int argc, char **argv) {
                 if (flags != NULL && argi + z + 1 < argc) { check_proof_res = 1; strncpy (proof_file_name, argv[argi+1], NAME_LEN-1); z++; }
                 flags = strpbrk(argv[argi], "dD");
                 if (flags != NULL) debug = 1;
+                flags = strpbrk(argv[argi], "eE");
+                if (flags != NULL) exclude = 1;
                 flags = strpbrk(argv[argi], "hH");
                 if (flags != NULL) help = 1;
                 flags = strpbrk(argv[argi], "iI");
@@ -654,7 +663,7 @@ int main (int argc, char **argv) {
                 flags = strpbrk(argv[argi], "zZ");   // increment z to ensure we advance argument past number
                 if (flags != NULL && argi + z + 1 < argc) { mpz_set_str(B, argv[argi+1], 10); z++; }
                 // reserving g for Gerbicz error checking
-                flags = strpbrk(argv[argi], "eEfFgGlLnNrRsS1234567890"); // check if there were other letters or numbers in combined flag
+                flags = strpbrk(argv[argi], "fFgGlLnNrRsS1234567890"); // check if there were other letters or numbers in combined flag
                 if (flags != NULL) {
                     printf ("Warning: unknown option in command line flag: %s\n", argv[argi]);
                     usage (0);
@@ -920,6 +929,7 @@ int main (int argc, char **argv) {
             printf ("Error: Can only specify one of -cpr and -upr\n\nAborting P%lspin test and using specified proof for Suyama test\n", pe);
             check_proof_res = 0;
         }
+        if (m > 0) exclude = 1;         // Fermat proofs cannot currently be validated by verify.c
         printf ("Reading residue from proof file: %s\n", proof_file_name);
 
         if ((fp_proof = fopen (proof_file_name, "rb")) == NULL) {               // The "b" is not needed according to fopen man page
@@ -1302,17 +1312,17 @@ int main (int argc, char **argv) {
         mpz_set (A, A_proof);
         mpz_set (GMPbase, B);
         mpz_set (B, A_proof);
-        if (debug && json) {printf ("Call to GW proof validation:\n\n"); fflush(stdout);}
-        if (json && m == 0) {
+        i = 0;
+        if (debug && !exclude) {printf ("Call to GW proof validation:\n\n"); fflush(stdout);}
+        if (!exclude) {
             GWbase = mpz_get_ui (GMPbase);
             binary64togw (&gwdata, &GWbase, 1L, r_gw);
             gw_clear_maxerr (&gwdata);
-            i = 0;
             i = verify (proof_file_name, verbose || debug, gwdata);
             gwfree (&gwdata, r_gw);             // Free the GW number: GW docs do not make it clear when this is needed
             gwdone (&gwdata);                   // Free all GW data
         }
-        if (debug && json) printf ("Return from proof validation = %d\n", i);
+        if (debug && !exclude) printf ("Return from proof validation = %d\n", i);
         if (i > fft_length) fft_length = i;
 
         if (m != 0) printf ("Skipping the P%lspin test\n\n", pe);
@@ -1504,10 +1514,10 @@ int main (int argc, char **argv) {
                 if (debug) print_residues (A_proof, binary, SH, "  A proof  ");
                 exit (1);
             }
-            if (debug) {printf ("Call to verify.c:\n"); fflush(stdout);}
+            if (debug && !exclude) {printf ("Call to verify.c:\n"); fflush(stdout);}
             i = 0;
-            if (m == 0) i = verify (proof_file_name, verbose || debug, gwdata);
-            if (debug) printf ("Return from verify = %d\n", i);
+            if (!exclude) i = verify (proof_file_name, verbose || debug, gwdata);
+            if (debug && !exclude) printf ("Return from verify = %d\n", i);
             if (i > fft_length) fft_length = i;
         }
 
@@ -1765,7 +1775,8 @@ fast_exit:
         if (fft_length) printf ("\", \"fft-length\":%d", fft_length);
         time_block = gmtime(&current_time);
         strftime(time_string, TIME_STRING_LEN, "%Y-%m-%d %X", time_block);
-        printf ("\", \"shift-count\":0, \"error-code\":\"00000000\", \"program\":{\"name\":\"%s\", \"version\":\"%s\", \"port\":8}, \"timestamp\":\"%s\"", prog_name, prog_vers, time_string);
+        if (exclude && (check_proof_res || use_proof_res)) symb = "1"; else symb = "0"; // error code 00000001 indicates a proof was not validated to obtain this result
+        printf ("\", \"shift-count\":0, \"error-code\":\"0000000%s\", \"program\":{\"name\":\"%s\", \"version\":\"%s\", \"port\":8}, \"timestamp\":\"%s\"", symb, prog_name, prog_vers, time_string);
         if (n_fact > 0) {
             printf (", \"known-factors\":[");
             for (i = 0; i < n_fact; i++) {
