@@ -57,13 +57,13 @@ This may be summed up as `cofact` having 3 basic modes of operation:
 ### Testing of Mersenne numbers
 
 Results of PRobable Prime (PRP) testing of Mersenne numbers and cofactors may also be reported to the GIMPS project at 
-[mersenne.org](https://www.mersenne.org), so there are some additional options summarised here:
+[mersenne.org](https://www.mersenne.org/manual_result/), so there are some additional options summarised here:
 
 `cofact` Mode | Fermat numbers | Mersenne numbers without reporting | Mersenne numbers with reporting enabled
 --------------|----------------|------------------------------------|----------------------------------------
 Mode 1 | Runs Pépin test; optionally, runs Suyama test | Runs Fermat-PRP test; optionally, runs Suyama test | Runs Fermat-PRP (type 1 test), or Fermat-PRP and Suyama tests with factors (type 5 test)
 Mode 2 | Runs Pépin test; optionally, runs Suyama test; proof file required | Runs Fermat-PRP test; optionally, runs Suyama test; proof file required | Runs Fermat-PRP (type 1 test), or Fermat-PRP and Suyama with factors (type 5 test); proof file is verified for correctness
-Mode 3 | Runs Suyama test only; proof file required; does not use `gwnum` | Runs Suyama test only; proof file required; does not use `gwnum` | Runs Suyama test only; proof file is verified using `gwnum` for correctness
+Mode 3 | Runs Suyama test only; proof file required; does not use `gwnum` | Runs Suyama test only; proof file required; does not use `gwnum` | Runs Suyama test only; proof file is verified for correctness using `gwnum`
 
 The Pépin or Fermat-PRP tests, along with proof verification, all require the `gwnum` library and can run multi-threaded. In mode 2 `cofact` will only check the final residue calculated matches the Suyama $A$ residue in a proof file, unless reporting is enabled with the `-j` option, in which case the correctness of the proof file will also be verified. Since this may amount to repeating the same computation more than once, the reporting option is intended either for Mode 1 with Mersenne exponents too small to generate proofs, or Mode 3 for all other Mersenne numbers using a proof furnished from another program (e.g. mprime or gpuOwL).
 
