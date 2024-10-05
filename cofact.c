@@ -1247,7 +1247,7 @@ int main (int argc, char **argv) {
 
     z = 0;
     // If json indicates we are testing a Mersenne for a cofactor result, or we are checking a proof or trying a primality test, then gwnum must be initialised
-    if ((json && m == 0) || !use_proof_res) {
+    if (json || !use_proof_res) {
         printf ("Using %d threads in gwnum library\n", threads);
         fflush (stdout);
 
@@ -1277,11 +1277,12 @@ int main (int argc, char **argv) {
         }
 
         gwsetnormroutine (&gwdata, 0, 1, 0);                    // Set flag to enable round-off error checking
-                                                                // This call must be AFTER gwsetup
+        fft_length = gwfftlen (&gwdata);                        // This call must be AFTER gwsetup
+
         if (verbose) {
             gwfft_description (&gwdata, line);
             printf ("fft_description: %s\n", line);
-            printf ("fftlen = %ld\n", gwfftlen (&gwdata));
+            printf ("fftlen = %ld\n", fft_length);
             printf ("near_fft_limit = %d\n", gwnear_fft_limit (&gwdata, (double)3.0));
             printf ("\n");
         }
@@ -1305,7 +1306,6 @@ int main (int argc, char **argv) {
         if (json && m == 0) {
             GWbase = mpz_get_ui (GMPbase);
             binary64togw (&gwdata, &GWbase, 1L, r_gw);
-            fft_length = gwfftlen (&gwdata);
             gw_clear_maxerr (&gwdata);
             i = 0;
             i = verify (proof_file_name, verbose || debug, gwdata);
@@ -1338,7 +1338,6 @@ int main (int argc, char **argv) {
         // Initialize r_gw = base for Pepin test = 3
         GWbase = mpz_get_ui (GMPbase);
         binary64togw (&gwdata, &GWbase, 1L, r_gw);
-        fft_length = gwfftlen (&gwdata);
         gw_clear_maxerr (&gwdata);
 
         // Create buffer for transfer of residues from GWNUM to GMP
