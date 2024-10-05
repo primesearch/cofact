@@ -1775,7 +1775,7 @@ fast_exit:
         if (fft_length) printf ("\", \"fft-length\":%d", fft_length);
         time_block = gmtime(&current_time);
         strftime(time_string, TIME_STRING_LEN, "%Y-%m-%d %X", time_block);
-        if (exclude && (check_proof_res || use_proof_res)) symb = "1"; else symb = "0"; // error code 00000001 indicates a proof was not validated to obtain this result
+        if (exclude && use_proof_res) symb = "1"; else symb = "0"; // error code 00000001 indicates a proof was not validated to obtain this result
         printf ("\", \"shift-count\":0, \"error-code\":\"0000000%s\", \"program\":{\"name\":\"%s\", \"version\":\"%s\", \"port\":8}, \"timestamp\":\"%s\"", symb, prog_name, prog_vers, time_string);
         if (n_fact > 0) {
             printf (", \"known-factors\":[");
