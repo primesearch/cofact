@@ -1768,29 +1768,36 @@ fast_exit:
         mpz_and (r64, A, mask64);
         j = mpz_get_ui (r64);
         mpz_tdiv_r_2exp (tmp, A, 2048L);
-        printf ("Manual results JSON string:\n{\"status\":\"%s\", \"exponent\":%lu, \"worktype\":\"PRP-%d\", \"res64\":\"%016lX\", \"residue-type\":", symb, exp, i, j);
-        if (n_fact > 0) printf ("5"); else printf ("1");
-        printf (", \"res2048\":\"");
-        mpz_out_str (stdout, 16, tmp);
-        if (fft_length) printf ("\", \"fft-length\":%d", fft_length);
+        FILE *fptr;
+        fptr = fopen ("results.json.txt", "a");
+        printf ("Manual results JSON string appended to results.json.txt:\n");
+        sprintf (line, "{\"status\":\"%s\", \"exponent\":%lu, \"worktype\":\"PRP-%d\", \"res64\":\"%016lX\", \"residue-type\":", symb, exp, i, j);
+        if (n_fact > 0) symb = "5"; else symb = "1";
+        sprintf (strchr(line, '\0'), "%s, \"res2048\":\"", symb);
+        printf ("%s", line); fprintf (fptr, "%s", line);
+        mpz_out_str (stdout, 16, tmp); mpz_out_str (fptr, 16, tmp);
+        if (fft_length) printf ("\", \"fft-length\":%d", fft_length); fprintf (fptr, "\", \"fft-length\":%d", fft_length);
         time_block = gmtime(&current_time);
         strftime(time_string, TIME_STRING_LEN, "%Y-%m-%d %X", time_block);
-        if (exclude && use_proof_res) symb = "1"; else symb = "0"; // error code 00000001 indicates a proof was not validated to obtain this result
-        printf ("\", \"shift-count\":0, \"error-code\":\"0000000%s\", \"program\":{\"name\":\"%s\", \"version\":\"%s\", \"port\":8}, \"timestamp\":\"%s\"", symb, prog_name, prog_vers, time_string);
+        if (exclude && (check_proof_res || use_proof_res)) symb = "1"; else symb = "0"; // error code 00000001 indicates a proof was not validated to obtain this result
+        sprintf (line, "\", \"shift-count\":0, \"error-code\":\"0000000%s\", \"program\":{\"name\":\"%s\", \"version\":\"%s\", \"port\":10}, \"timestamp\":\"%s\"", symb, prog_name, prog_vers, time_string);
+        printf ("%s", line); fprintf (fptr, "%s", line);
         if (n_fact > 0) {
-            printf (", \"known-factors\":[");
+            printf (", \"known-factors\":["); fprintf (fptr, ", \"known-factors\":[");
             for (i = 0; i < n_fact; i++) {
                 symb = "\"";
-                printf ("%s", symb);
-                mpz_out_str (stdout, 10, fact[i]);
+                printf ("%s", symb); fprintf (fptr, "%s", symb);
+                mpz_out_str (stdout, 10, fact[i]); mpz_out_str (fptr, 10, fact[i]);
                 if (i+1 < n_fact) symb = "\", ";
-                printf ("%s", symb);
+                printf ("%s", symb); fprintf (fptr, "%s", symb);
             }
-            printf ("]");
+            printf ("]"); fprintf (fptr, "]");
         }
-        if (who > 0) printf (", \"user\":\"%s\"", argv[who]); else printf (", \"user\":\"ANONYMOUS\"");
-        if (computer > 0) printf (", \"computer\":\"%s\"", argv[computer]);
-        printf ("}\n\n");
+        if (who > 0) sprintf (line, ", \"user\":\"%s\"", argv[who]); else sprintf (line, ", \"user\":\"ANONYMOUS\"");
+        if (computer > 0) sprintf (strchr(line, '\0'), ", \"computer\":\"%s\"", argv[computer]);
+        sprintf (strchr(line, '\0'), "}\n");
+        printf ("%s\n", line); fprintf (fptr, "%s", line);
+        fclose (fptr);
     }
 
     // Print the date and time the program ended and the total wall time
