@@ -97,7 +97,7 @@
 #define tv_msecs(tv) (tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0)
 
 const char *prog_name  = "cofact";
-const char *prog_vers  = "0.91";
+const char *prog_vers  = "0.9.1";
 const char *build_date = __DATE__;
 const char *build_time = __TIME__;
 
