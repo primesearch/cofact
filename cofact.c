@@ -1396,8 +1396,12 @@ int main (int argc, char **argv) {
         x = exp - 1;                                            // Number of Pepin test square/mod steps: x = 2^n - 1
         gsq = gerbicz * gerbicz;
 
-        // If the progress print increment has not been set and the test is likely to take more than a second (at least 100000 steps), set it by default to 10% of the run
-        if (j_progress_inc == 0 && x > 100000) j_progress_inc = x / 10;                // Default to 10% of the run
+        // If the progress print increment has not been set and the test is likely to take 
+        // more than a second (at least 100000 steps), set it by default to 10% of the run
+        if (j_progress_inc == 0) {
+            j_progress_inc = x;
+            if (x > 100000) j_progress_inc = x / 10;
+        }
 
         j_progress = j_progress_inc;
         (void) gettimeofday(&tv_progress_start, (struct timezone *) 0);
