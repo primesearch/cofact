@@ -64,8 +64,7 @@
  * There is some limited error checking using Gerbicz's integrity test for PRP tests on numbers
  * with known prime factors q, which has a 1/q likelihood of error (which is small for large q).
  *
- * Some future nice things to consider adding: full Gerbicz error checking, proof generation,
- * and giving everyone a unicorn.
+ * Some future nice things to consider adding: proof generation and giving everyone a unicorn.
  */
 
 #include <stdlib.h>
@@ -98,7 +97,7 @@
 #define tv_msecs(tv) (tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0)
 
 const char *prog_name  = "cofact";
-const char *prog_vers  = "0.9";
+const char *prog_vers  = "0.91";
 const char *build_date = __DATE__;
 const char *build_time = __TIME__;
 
@@ -206,10 +205,10 @@ void usage (int verbose) {
     printf ("  -h, --help          This basic Help\n");
     printf ("  -k                  Use known Fermat factors (or Mersenne factors if a proof header lists them)\n");
     printf ("                  **  Do NOT use -k if you believe you have a new factor to test.   **\n");
-    printf ("  -t threads          Specifies the number of threads to use in the gwnum library. Defaults to 1.\n");
+    printf ("  -t  threads         Specifies the number of threads to use in the gwnum library. Defaults to 1.\n");
     printf ("  -y, --mersenne      Run Fermat-PRP or cofactor tests on a Mersenne number M = 2^p - 1, p > 30\n");
     printf ("                      This flag is optional but if used it must immediately precede the exponent.\n");
-    printf ("  -z base             Use a different base for the P%lspin test\n\n", pe);
+    printf ("  -z  base            Use a different base for the P%lspin test\n\n", pe);
     printf ("                      Flags modifying cofact's operation should always precede the exponent.\n\n");
     printf ("More verbose help is available:    cofact -hv | more\n\n");
     } else {
@@ -293,7 +292,7 @@ void usage (int verbose) {
     printf ("  Use with care! The super-verbose flag -sv also includes the normal -v level of verbosity, and \n");
     printf ("  switches on -d (debug), -i, -m, -o, and -x flags as well. It is not a good idea to run -sv on \n");
     printf ("  Fermat numbers greater than F10 unless you need or want full listings of cofact's doings.\n\n");
-    printf ("  Any of the following flags may be run together as one argument, i.e. as -abcdhijkmopqtuvwxz:\n");
+    printf ("  Any of the following flags may be run together as one argument, i.e. as -abcdeghijkmopqtuvwxz:\n");
     printf ("    -a, -b, -i, -m, -o, -p, -x  for various modifications to the P%lspin or Suyama test output;\n", pe);
     printf ("    -c or -u  filename          to either check or use a proof file (but you cannot specify both);\n");
     printf ("    -d, -v                      for debug or verbose modes;\n");
@@ -377,7 +376,7 @@ int main (int argc, char **argv) {
     int check_proof_res;            // Flags -c or -cpr to enable checking the mprime proof file A residue
     int debug;                      // Flag -d to enable printing debug information
     int exclude;                    // Flag -e excludes verification of a proof when generating a JSON result
-                                    // Flag -g reserved
+    int gerbicz, gsq, rollback;     // Flag -g reserved; Gerbicz error checking variables
     int help;                       // Flag -h for printing help
     int interim;                    // Flag -i to print select interim residues
     int json;                       // Flag -j to print a JSON
@@ -398,7 +397,7 @@ int main (int argc, char **argv) {
     char cmdline[CMD_LEN];          // The reconstructed command line
     char line[2048];                // Temp string
     unsigned long y;
-    int argi, rtn, i, l, n, z;      // Use q next
+    int argi, rtn, i, l, n, q, z;   // Use r next
     char *symb;                     // A temporary string to display a single symbol or character
     char *flags;                    // Pointer for multiple flags in one argument; z if file location to follow
 
@@ -420,6 +419,7 @@ int main (int argc, char **argv) {
     // gwnum library variables
     gwhandle gwdata;                // Structure for gwlib information
     gwnum r_gw;                     // The square/mode residue
+    gwnum g_gw, h_gw, j_gw, k_gw;   // Gerbicz error check and rollback variables
     int gwerr;                      // Error value returned by some gwnum library calls
     double maxerr;                  // The maximum roundoff error returned by gw_get_maxerr
 
@@ -437,6 +437,7 @@ int main (int argc, char **argv) {
     mpz_t Q;                        // The product of known or supplied factors
     mpz_t C;                        // The remaining cofactor
     mpz_t S;                        // The result of the Suyama test (used as a temporary variable en route)
+    mpz_t G, H;                     // Variables for implementing Gerbicz error-checking
     mpz_t GMPbase;                  // The Fermat-PRP base, usually 3
     mpz_t A_proof;                  // The proof file residue
     mpz_t tmp;                      // Another temporary variable used en route
@@ -489,6 +490,8 @@ int main (int argc, char **argv) {
     mpz_init (Q);
     mpz_init (C);
     mpz_init (S);
+    mpz_init (G);
+    mpz_init (H);
     mpz_init (A_proof);
     mpz_init (tmp);
 
@@ -513,6 +516,8 @@ int main (int argc, char **argv) {
     super_verbose = 0;      // Default to no super verbose
     use_proof_res = 0;      // Default to calculating the A residue
     verbose = 0;            // Default to no verbose
+    gerbicz = 1000;         // Default interval for Gerbicz error check = 1000
+    rollback = 0;
     who = 0;
     exp = 0;                // Default to no Suyama testing of a Mersenne
     m = 0;                  // Invalid value for Fermat numbers, to make sure m is later set
@@ -545,6 +550,18 @@ int main (int argc, char **argv) {
         } else
         if ((strcmp(argv[argi], "--do-not-verify") == 0) || (strcmp(argv[argi], "--DO-NOT-VERIFY") == 0)) {
             exclude = 1;
+        } else
+        if ((strcmp(argv[argi], "--gerbicz") == 0) || (strcmp(argv[argi], "--Gerbicz") == 0) || (strcmp(argv[argi], "--GERBICZ") == 0)) {
+            argi++;
+            mpz_set_str (tmp, argv[argi], 10);
+            gerbicz = mpz_get_ui (tmp);
+            if (gerbicz < 10001) gerbicz = 100;
+            if (gerbicz > 1000000) gerbicz = 1000;
+                else {
+                    i = 100;
+                    while (i*i < gerbicz) i++;
+                    gerbicz = i;
+                }
         } else
         if ((strcmp(argv[argi], "--help") == 0) || (strcmp(argv[argi], "--HELP") == 0)) {
             help = 1;
@@ -613,9 +630,9 @@ int main (int argc, char **argv) {
             argi++;
             mpz_set_str(B, argv[argi], 10); 
         } else
-        if (strncmp(argv[argi], "-", 1) == 0) {     // Combined -abcdehijkmopqtuvwxyz flags, processed in alphabetical order
+        if (strncmp(argv[argi], "-", 1) == 0) {     // Combined -abcdeghijkmopqtuvwxyz flags, processed in alphabetical order
             z = 0;
-            flags = strpbrk(argv[argi], "aAbBcCdDeEhHiIjJkKmMoOpPqQtTuUvVwWxXyYzZ");      // We are somewhat tolerant of upper case
+            flags = strpbrk(argv[argi], "aAbBcCdDeEgGhHiIjJkKmMoOpPqQtTuUvVwWxXyYzZ");      // We are somewhat tolerant of upper case
             if (flags != NULL) {
                 flags = strpbrk(argv[argi], "aA");
                 if (flags != NULL) all_int = 1;
@@ -627,6 +644,19 @@ int main (int argc, char **argv) {
                 if (flags != NULL) debug = 1;
                 flags = strpbrk(argv[argi], "eE");
                 if (flags != NULL) exclude = 1;
+                flags = strpbrk(argv[argi], "gG");
+                if (flags != NULL && argi + z + 1 < argc) {
+                    mpz_set_str (tmp, argv[argi+1], 10);
+                    gerbicz = mpz_get_ui (tmp);
+                    if (gerbicz < 10001) gerbicz = 100;
+                    if (gerbicz > 1000000) gerbicz = 1000;
+                    else {
+                        i = 100;
+                        while (i*i < gerbicz) i++;
+                        gerbicz = i;
+                    }
+                    z++;
+                }
                 flags = strpbrk(argv[argi], "hH");
                 if (flags != NULL) help = 1;
                 flags = strpbrk(argv[argi], "iI");
@@ -662,8 +692,7 @@ int main (int argc, char **argv) {
                 }
                 flags = strpbrk(argv[argi], "zZ");   // increment z to ensure we advance argument past number
                 if (flags != NULL && argi + z + 1 < argc) { mpz_set_str(B, argv[argi+1], 10); z++; }
-                // reserving g for Gerbicz error checking
-                flags = strpbrk(argv[argi], "fFgGlLnNrRsS1234567890"); // check if there were other letters or numbers in combined flag
+                flags = strpbrk(argv[argi], "fFlLnNrRsS1234567890"); // check if there were other letters or numbers in combined flag
                 if (flags != NULL) {
                     printf ("Warning: unknown option in command line flag: %s\n", argv[argi]);
                     usage (0);
@@ -929,7 +958,6 @@ int main (int argc, char **argv) {
             printf ("Error: Can only specify one of -cpr and -upr\n\nAborting P%lspin test and using specified proof for Suyama test\n", pe);
             check_proof_res = 0;
         }
-        if (m > 0) exclude = 1;         // Fermat proofs cannot currently be validated by verify.c
         printf ("Reading residue from proof file: %s\n", proof_file_name);
 
         if ((fp_proof = fopen (proof_file_name, "rb")) == NULL) {               // The "b" is not needed according to fopen man page
@@ -1298,8 +1326,12 @@ int main (int argc, char **argv) {
         }
 
         r_gw = gwalloc (&gwdata);                               // Allocate a GW number for the residue
-        if (r_gw == NULL) {
-            printf ("gwalloc for r_gw failed\n");
+        g_gw = gwalloc (&gwdata);
+        h_gw = gwalloc (&gwdata);
+        j_gw = gwalloc (&gwdata);
+        k_gw = gwalloc (&gwdata);
+        if (r_gw == NULL || g_gw == NULL || h_gw == NULL || j_gw == NULL || k_gw == NULL) {
+            printf ("gwalloc of _gw variables failed\n");
             exit (1);
         }
     }
@@ -1347,6 +1379,10 @@ int main (int argc, char **argv) {
 
         // Initialize r_gw = base for Pepin test = 3
         GWbase = mpz_get_ui (GMPbase);
+        binary64togw (&gwdata, &GWbase, 1L, g_gw);
+        binary64togw (&gwdata, &GWbase, 1L, h_gw);
+        binary64togw (&gwdata, &GWbase, 1L, j_gw);
+        binary64togw (&gwdata, &GWbase, 1L, k_gw);
         binary64togw (&gwdata, &GWbase, 1L, r_gw);
         gw_clear_maxerr (&gwdata);
 
@@ -1355,6 +1391,7 @@ int main (int argc, char **argv) {
         r_bin = (unsigned long *) calloc (r_bin_buf_len, sizeof (unsigned long));
 
         x = exp - 1;                                            // Number of Pepin test square/mod steps: x = 2^n - 1
+        gsq = gerbicz * gerbicz;
 
         // If the progress print increment has not been set and the test is likely to take more than a second (at least 100000 steps), set it by default to 10% of the run
         if (j_progress_inc == 0 && x > 100000) j_progress_inc = x / 10;                // Default to 10% of the run
@@ -1371,7 +1408,8 @@ int main (int argc, char **argv) {
         }
 
         // Almost all the runtime is in the following loop
-        for (j = 1; j <= x; j++) {
+        j = 1;
+        while (j <= x) {
             if (j < 24) {                                               // FIXME Good for n <= 2^24? Could this be set more intelligently?
                 gwsquare2_carefully (&gwdata, r_gw, r_gw);              // r_gw = (r_gw ^ 2) mod F
             } else {
@@ -1379,10 +1417,41 @@ int main (int argc, char **argv) {
                 gwsquare2 (&gwdata, r_gw, r_gw, 0);                     // r_gw = (r_gw ^ 2) mod F      Use this line when using gwnum from mprime v30.8
                                                                         // NOTE, gwnum 30.8 has extra options requiring additional variable set to 0; see gwnum.h (CX Cowie)
             }
+            if (j == 1) gwcopy (&gwdata, r_gw, k_gw);
             maxerr = gw_get_maxerr (&gwdata);
             if (maxerr >= 0.45) {
                 printf ("Roundoff warning: k = %ld, m = %d, iteration = %ld, maxerr = %22.20lf\n", k, m, j, maxerr);
                 gw_clear_maxerr (&gwdata);
+            }
+            if (j % gerbicz == 0) {
+                gwcopy (&gwdata, g_gw, h_gw);
+                gwmul3 (&gwdata, g_gw, r_gw, g_gw, 0);
+                if ((j % gsq == 0) || j + gerbicz > x) {
+                    for (q = 0; q < gerbicz; q++) {
+                        gwsquare2 (&gwdata, h_gw, h_gw, 0);
+                    }
+                    gwsmallmul (&gwdata, GWbase, h_gw);
+                    len = gwtobinary64 (&gwdata, g_gw, r_bin, r_bin_buf_len);
+                    mpz_import (G, len, -1, 8, 0, 0, r_bin);
+                    len = gwtobinary64 (&gwdata, h_gw, r_bin, r_bin_buf_len);
+                    mpz_import (H, len, -1, 8, 0, 0, r_bin);
+                    if (mpz_cmp (G, H) == 0) {
+                        if (debug) printf ("GEC at %lu!\n", j);
+                        gwcopy (&gwdata, g_gw, j_gw); // Rollback variables of d(t) and u(t)
+                        gwcopy (&gwdata, r_gw, k_gw);
+                    } else {
+                        if (debug) printf ("GEC rollback at %lu\n", j);
+                        rollback++;
+                        gwcopy (&gwdata, j_gw, g_gw);
+                        gwcopy (&gwdata, k_gw, r_gw);
+                        if (j == gsq || rollback > 10) {
+                            if (rollback > 10) printf ("Too many rollbacks at %lu; restarting calculation\n", j);
+                            j = 1;
+                        } else {
+                            if (j % gsq == 0) j -= gsq; else j -= j % gsq;
+                        }
+                    }
+                }
             }
             k = 0;                              // Use k to obtain a residue under certain conditions
             if (all_int || j == x) k = 1;
@@ -1433,6 +1502,7 @@ int main (int argc, char **argv) {
                     fflush (stdout);
                 }
             }
+            j++;
         }
 
         // Check for errors
@@ -1707,7 +1777,8 @@ int main (int argc, char **argv) {
             mpz_mul (B, B, B); mpz_mul_ui (tmp, tmp, 2L);
             mpz_tdiv_r (B, B, F);
         }
-        if (debug) {mpz_out_str (stdout, 10, tmp); if (mpz_cmp (Q, tmp) == 1) printf (" = Q-1\n");}
+        if (debug) {mpz_out_str (stdout, 10, tmp);
+        if (mpz_cmp (Q, tmp) == 1 && verbose) symb = " = Q-1"; else symb = ""; printf ("%s\n", symb);}
         print_residues (B, binary, SH, "Suyama    B");
         fflush (stdout);
         if (modc) {
@@ -1779,7 +1850,7 @@ fast_exit:
         if (fft_length) printf ("\", \"fft-length\":%d", fft_length); fprintf (fptr, "\", \"fft-length\":%d", fft_length);
         time_block = gmtime(&current_time);
         strftime(time_string, TIME_STRING_LEN, "%Y-%m-%d %X", time_block);
-        if (exclude && (check_proof_res || use_proof_res)) symb = "1"; else symb = "0"; // error code 00000001 indicates a proof was not validated to obtain this result
+        if (exclude && use_proof_res) symb = "1"; else symb = "0"; // error code 00000001 indicates a proof was not validated to obtain this result
         sprintf (line, "\", \"shift-count\":0, \"error-code\":\"0000000%s\", \"program\":{\"name\":\"%s\", \"version\":\"%s\", \"port\":10}, \"timestamp\":\"%s\"", symb, prog_name, prog_vers, time_string);
         printf ("%s", line); fprintf (fptr, "%s", line);
         if (n_fact > 0) {
@@ -1792,6 +1863,10 @@ fast_exit:
                 printf ("%s", symb); fprintf (fptr, "%s", symb);
             }
             printf ("]"); fprintf (fptr, "]");
+        }
+        if (!use_proof_res) {
+            sprintf (line, ", \"errors\":{\"gerbicz\":%d}", rollback);
+            printf ("%s", line); fprintf (fptr, "%s", line);
         }
         if (who > 0) sprintf (line, ", \"user\":\"%s\"", argv[who]); else sprintf (line, ", \"user\":\"ANONYMOUS\"");
         if (computer > 0) sprintf (strchr(line, '\0'), ", \"computer\":\"%s\"", argv[computer]);
