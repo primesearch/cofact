@@ -1,7 +1,7 @@
 # cofact
 ## A utility for testing the character of a Fermat or Mersenne cofactor
 `cofact` is a companion program for George Woltman’s `mprime` that tests a small Fermat number for 
-primality, or optionally in version 0.9, a small Mersenne number for probable primality (PRP). 
+primality, or optionally in version 0.9.1, a small Mersenne number for probable primality (PRP). 
 (In this context, ‘small’ means, up to about 320 million digits in size!)
 
 If known factors are given, then the cofactor is likewise tested for probable primality.
@@ -86,7 +86,7 @@ The full set of menu options available in later versions are discussed [below](#
 ## Authors
 Gary B. Gostin, versions 0.1 to 0.8.2 (the original, `main` branch)
 
-Catherine X. Cowie, versions 0.6 to 0.9 (the `cxc` branch)
+Catherine X. Cowie, versions 0.6 to 0.9.1 (the `cxc` branch)
 
 Using `git` you may switch between the two versions, prior to the build instructions above:
 ```bash
@@ -95,10 +95,10 @@ cd cofact; git switch [main|cxc]
 ## Copyright
 This program is copyright © 2023–2024 Gostin and Cowie under the GPL v3 licence.
 
-The `gwnum` library, and the proof validation module is © 2002–24 Mersenne Research, Inc, used 
+The `gwnum` library, and the proof validation module are copyright © 2002–2024 Mersenne Research, Inc, used 
 with permission. All rights reserved.
 
-The GMP library is © 1991, 1993–2016, 2018–2024 Free Software Foundation, Inc.
+The GMP library is copyright © 1991, 1993–2016, 2018–2024 Free Software Foundation, Inc.
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU 
 General Public License as published by the Free Software Foundation, either version 3 of the License, or 
@@ -145,7 +145,9 @@ with `cofact`.
 
 With the exception of $F_{30}$, and the Selfridge–Hurwitz residues of Pépin tests of 
 $F_{27}$, $F_{28}$, and $F_{29}$, all of Mayer’s results obtained between 2013 and 2022 using `Mlucas`, 
-have been replicated independently using `mprime` and `cofact`.
+have been replicated independently using `mprime` and `cofact`. The extension of `cofact` to run any 
+conceivable equivalent test on Mersenne exponents similarly allows complete replication of 
+`Mlucas` cofactor results using `mprime` and `cofact`, and _vice versa_.
 
 ## Mathematics
 The Fermat numbers have the form $2^{2^m}+1$, $m \ge 0$, and the Mersenne numbers have the form 
@@ -171,7 +173,7 @@ sufficient for our purposes. Here, $R = b^{M - 1} \equiv 1$ (mod $M$) is used to
 establish probable primality, using Fermat’s little theorem. Since $M = 2^p - 1$, evaluating $R$ 
 requires $p$ squarings of the base $b$ followed by a modular division of $b^2$ to reach the 
 Fermat-PRP result, also described as value $A$ of the cofactor test, which was devised by Hiromi 
-Suyama in 1984 and subsequently improved upon by Hendrik W. Lenstra, Jr.
+Suyama in 1984 and subsequently refined by Hendrik W. Lenstra, Jr.
 
 ### Suyama cofactor test
 Suyama’s method also utilises Fermat’s little theorem to test the cofactor. If a Fermat number $F$ 
@@ -191,7 +193,8 @@ Fermat-PRP test, the `gwnum` library provides better, multi-threaded performance
 does not save interim results however, so for any Mersenne exponent greater than a million, 
 a dedicated piece of software such as `mprime` or `gpuOwL` will provide save and restart 
 functionality, and may generate a proof which `cofact` can then utilise to rerun the Suyama 
-test whenever new factors are discovered.
+test whenever new factors are discovered. The modular squaring uses Robert Gerbicz’s ingenious 
+[error checking](https://www.mersenneforum.org/node/16972) method.
 ### Proof files
 `mprime` is capable of generating verifiable delay function proof files for any Mersenne 
 exponent larger than $105,000$ (though the source code readily permits files to be generated 
@@ -205,6 +208,10 @@ available for download from the co-author’s [website](https://64ordle.au/ferma
 If you wish to use `mprime` to generate a proof for $F_{30}$, we would be 
 [most interested](https://www.mersenneforum.org/node/17112/page3)
 in knowing about it (however it is not a task for the faint-hearted).
+
+If you believe you have a newly-discovered factor to test, it is *strongly recommended* you 
+do not use the `-k` option, but obtain the list of all known factors and add your new factor 
+to them; this will detect any hidden divisibilities between them and the new factor.
 ### Residues
 The default output prints a hexadecimal residue modulo $2^{64}$, along with the triplet of 
 smaller residues devised by Alexander Hurwitz and John Selfridge in 1964, which by default 
@@ -228,8 +235,10 @@ Short option   | Long option          | Function
 -b             |--binary              | Output final residues in binary. (This is also not recommended for large exponents.)
 -c _filename_  |--check-proof         | Check a VDF proof by computing the Fermat-PRP/Suyama $A$ residue for direct comparison. (This will be impractically lengthy for large exponents; most often you will want to use `-u` or `--use-proof` below.)
 -d             |--debug               | Print debug information.
+-e             |--do-not-verify       | Exclude a proof from being validated when printing reports for Mersenne cofactor tests. (Large proofs may take several hours to verify.)
+-g _iterations_|--Gerbicz             | Change the interval for error checking (the default is 1 million). The minimum value allowed is 10,000 iterations. `cofact` will select the closest square number below or equal to the _number_ chosen.
 -h             |--help                | Print basic help (`-hv` and `-h -sv` are increasingly verbose).
--i             |--interim-residues    | Print interim residues at various points.
+-i             |--interim-residues    | Print interim residues at various points (also see `-p` below).
 -j             |--report-json         | Print a `JSON` report string for a Mersenne cofactor test, to allow submission of cofactor results. PrimeNet user and computer names may be entered into the string (see `-w` and `-q`). If a proof file is used, it will be verified to ensure the final residue can be correctly generated from the file. Verification takes a fraction of time compared with the original computation.
 -k             |--known-factors       | Use known factors of Fermat numbers (as of 2012) in place of supplying them after the exponent. When testing a Mersenne number in combination with checking or using a VDF proof, `cofact` can read the proof file’s description to import any known factors saved in the file header.
 -m             |--mod-c               | Reduce Suyama $A$ and $B$ values, modulo $C$ and print residues.
@@ -246,4 +255,4 @@ Short option   | Long option          | Function
 -z _base_      |--base                | Use a different base for primality testing (the default is 3).
 
 ## Future feature list
-Some future nice things to consider adding: full Gerbicz error checking, proof generation, and giving everyone a unicorn.
+Some nice things to consider adding in the future: proof generation, and giving everyone a unicorn.
