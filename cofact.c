@@ -61,8 +61,10 @@
  *    M-1 = 2^p - 2, so after p squarings a modular division by b^2 is required to obtain A. 
  * If a proof is used, this typically contains the A.b^2 residue prior to modular division.
  *
- * There is some limited error checking using Gerbicz's integrity test for PRP tests on numbers
- * with known prime factors q, which has a 1/q likelihood of error (which is small for large q).
+ * Modular squaring uses Gerbicz error checking with rollback available at maximum 1% overhead, 
+ * if the minimum checking interval of 10,000 is used; the default is 0.1%. A further integrity
+ * test also devised by Gerbicz checks the final calculated residues against any known prime 
+ * factors q, which has a 1/q likelihood of failing to detect error (which is small for large q).
  *
  * Some nice things to consider adding in the future: proof generation and giving everyone a unicorn.
  */
@@ -1436,7 +1438,7 @@ int main (int argc, char **argv) {
             printf (" modular squaring iterations from base %lu:\n", mpz_get_ui (GMPbase));
         }
         if (exp > 36) printf ("Interim residues:                       |      Selfridge - Hurwitz residues\nIteration              mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1\n");
-        
+
         // Almost all the runtime is in the following loop
         j = 1;
         while (j <= x) {
