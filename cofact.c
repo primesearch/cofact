@@ -1035,7 +1035,7 @@ int main (int argc, char **argv) {
             }
             if (known_factors) {
                 if (n_proof != exp) {
-                    printf ("Warning: proof file does not match the Mersenne exponent specified\nProceeding using exponent from proof file.\n");
+                    printf ("Warning: proof file does not match the Mersenne exponent specified in the command line.\nProceeding using exponent from proof file.\n");
                 }
                 exp = n_proof;
                 if (debug) printf ("Calculate the Mersenne number M%lu = 2^%lu-1 and M%lu - 1\n", exp, exp, exp); fflush (stdout);
@@ -1314,7 +1314,8 @@ int main (int argc, char **argv) {
     z = 0;
     // If json indicates we are testing a Mersenne for a cofactor result, or we are checking a proof or trying a primality test, then gwnum must be initialised
     if (json || !use_proof_res) {
-        printf ("Using %d threads in gwnum library\n", threads);
+        if (threads == 1) symb = ""; else symb = "s";
+        printf ("Using %d thread%s in gwnum library\n", symb, threads);
         fflush (stdout);
 
         k = 1;                          // k for modulo value
