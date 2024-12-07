@@ -86,6 +86,25 @@
 #include "roots.c"
 #include "verify.c"
 
+#ifdef _WIN64
+#define PORT	4
+#endif
+#ifdef __linux__
+#define PORT	8
+#endif
+#ifdef __FreeBSD__
+#define PORT	12
+#endif
+#if defined (__EMX__) || defined (__IBMC__) || defined (__OS2__)
+#define PORT	7
+#endif
+#ifdef __APPLE__
+#define PORT	10
+#endif
+#ifdef __HAIKU__
+#define PORT	11
+#endif
+
 #define CMD_LEN 2048        // Length of the command line string supports factors of 
                             // sizes up to the F12 cofactor or thereabouts, which is 1,133 digits
 #define NAME_LEN 64         // Length of the proof filename. Please use short, sensible filenames.
@@ -947,7 +966,7 @@ int main (int argc, char **argv) {
 */
             }
         }
-    } else if (!known_factors) {        // Set up F for Mersenne exponents; known factors are unavailable (choose not to read them from proof)
+    } else {        // Set up F for Mersenne exponents; known factors are unavailable (choose not to read them from proof)
         if (debug) printf ("Calculate the Mersenne number M%lu = 2^%lu-1 and M%lu - 1\n", exp, exp, exp); fflush (stdout);
         mpz_mul_2exp (F, F, exp);       // F   = 2^exp
         mpz_sub_ui (F, F, 1L);          // F   = 2^exp - 1
@@ -1013,8 +1032,12 @@ int main (int argc, char **argv) {
                 }
             }
             if (known_factors) {
+                if (n_proof != exp) {
+                    printf ("Warning: proof file does not match the Mersenne exponent specified\nProceeding using exponent from proof file.\n");
+                }
                 exp = n_proof;
                 if (debug) printf ("Calculate the Mersenne number M%lu = 2^%lu-1 and M%lu - 1\n", exp, exp, exp); fflush (stdout);
+                mpz_set_ui (F, 1L);
                 mpz_mul_2exp (F, F, exp);       // F   = 2^exp
                 mpz_sub_ui (F, F, 1L);          // F   = 2^exp - 1
                 mpz_sub_ui (Fm1, F, 1L);        // Fm1 = 2^exp - 2
@@ -1411,9 +1434,9 @@ int main (int argc, char **argv) {
         if (interim || all_int || j_progress_inc < x) {
             if (jacobi == -1) printf ("Calculating %ld", x); else printf ("Calculating %ld", x+1);
             printf (" modular squaring iterations from base %lu:\n", mpz_get_ui (GMPbase));
-            if (exp > 36 && (interim || all_int)) printf ("Interim residues:                       |      Selfridge - Hurwitz residues\nIteration              mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1\n");
         }
-
+        if (exp > 36) printf ("Interim residues:                       |      Selfridge - Hurwitz residues\nIteration              mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1\n");
+        
         // Almost all the runtime is in the following loop
         j = 1;
         while (j <= x) {
@@ -1476,6 +1499,7 @@ int main (int argc, char **argv) {
                             if (j % gsq == 0) j -= gsq; else j -= j % gsq;
                         }
                     }
+                    fflush (stdout);
                 }
             }
             k = 0;                              // Use k to obtain a residue under certain conditions
@@ -1540,9 +1564,6 @@ int main (int argc, char **argv) {
             } else  printf ("P%lspin P%d residue: length = %d words, %016lx %016lx ... %016lx %016lx\n", pe, m, len, r_bin[len-1], r_bin[len-2], r_bin[1], r_bin[0]);
         }
         if (jacobi == -1 || debug || interim || all_int) { // if jacobi is not -1, we do *not* have a valid Pepin test base (but we may still be able to do a Suyama test)
-            if (exp > 36 && !interim && !all_int) {
-                printf ("                                        |      Selfridge - Hurwitz residues\n                       mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1\n");
-            }
             if (m == 0 || jacobi != -1) print_residues (P, binary, SH, "Penultimate"); else print_residues (P, binary, m, "Pepin");
             if (super_verbose || (verbose && m > 0 && m < 12)) {
                 printf ("\nP%d == ", m);
@@ -1787,7 +1808,7 @@ int main (int argc, char **argv) {
         // Crandall & Pomerance (2000) call this a binary ladder exponentiation (algorithm 9.3.2)
         j = mpz_sizeinbase (Q, 2L);
         mpz_set (B, GMPbase);
-        mpz_set_ui (tmp, 1L); if (debug) printf ("Generating b^(Q-1), Q-1 = "); // use debug if you are concerned it doesn’t work properly!
+        mpz_set_ui (tmp, 1L); if (debug) printf ("Generating b^(Q-1), Q-1 = "); // use debug and verbose if you are concerned it doesn’t work properly!
         for (i = j - 1; i > 0; i--) {
             x = mpz_tstbit (Q, i);
             if (x == 1 && i > 0 && i < j - 1) {mpz_mul (B, B, GMPbase); mpz_add_ui (tmp, tmp, 1L); }
@@ -1865,11 +1886,11 @@ fast_exit:
         sprintf (strchr(line, '\0'), "%s, \"res2048\":\"", symb);
         printf ("%s", line); fprintf (fptr, "%s", line);
         mpz_out_str (stdout, 16, tmp); mpz_out_str (fptr, 16, tmp);
-        if (fft_length) printf ("\", \"fft-length\":%d", fft_length); fprintf (fptr, "\", \"fft-length\":%d", fft_length);
+        printf ("\", \"fft-length\":%d", fft_length); fprintf (fptr, "\", \"fft-length\":%d", fft_length);
         time_block = gmtime(&current_time);
         strftime(time_string, TIME_STRING_LEN, "%Y-%m-%d %X", time_block);
         if (exclude && use_proof_res) symb = "1"; else symb = "0"; // error code 00000001 indicates a proof was not validated to obtain this result
-        sprintf (line, "\", \"shift-count\":0, \"error-code\":\"0000000%s\", \"program\":{\"name\":\"%s\", \"version\":\"%s\", \"port\":10}, \"timestamp\":\"%s\"", symb, prog_name, prog_vers, time_string);
+        sprintf (line, "\", \"shift-count\":0, \"error-code\":\"0000000%s\", \"program\":{\"name\":\"%s\", \"version\":\"%s\", \"port\":%d}, \"timestamp\":\"%s\"", symb, prog_name, prog_vers, PORT, time_string);
         printf ("%s", line); fprintf (fptr, "%s", line);
         if (n_fact > 0) {
             printf (", \"known-factors\":["); fprintf (fptr, ", \"known-factors\":[");
