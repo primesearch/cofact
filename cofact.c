@@ -61,8 +61,10 @@
  *    M-1 = 2^p - 2, so after p squarings a modular division by b^2 is required to obtain A. 
  * If a proof is used, this typically contains the A.b^2 residue prior to modular division.
  *
- * There is some limited error checking using Gerbicz's integrity test for PRP tests on numbers
- * with known prime factors q, which has a 1/q likelihood of error (which is small for large q).
+ * Modular squaring uses Gerbicz error checking with rollback available at maximum 1% overhead, 
+ * if the minimum checking interval of 10,000 is used; the default is 0.1%. A further integrity
+ * test also devised by Gerbicz checks the final calculated residues against any known prime 
+ * factors q, which has a 1/q likelihood of failing to detect error (which is small for large q).
  *
  * Some nice things to consider adding in the future: proof generation and giving everyone a unicorn.
  */
@@ -85,6 +87,25 @@
 #include "proof_hash.c"
 #include "roots.c"
 #include "verify.c"
+
+#ifdef _WIN64
+#define PORT	4
+#endif
+#ifdef __linux__
+#define PORT	8
+#endif
+#ifdef __FreeBSD__
+#define PORT	12
+#endif
+#if defined (__EMX__) || defined (__IBMC__) || defined (__OS2__)
+#define PORT	7
+#endif
+#ifdef __APPLE__
+#define PORT	10
+#endif
+#ifdef __HAIKU__
+#define PORT	11
+#endif
 
 #define CMD_LEN 2048        // Length of the command line string supports factors of 
                             // sizes up to the F12 cofactor or thereabouts, which is 1,133 digits
@@ -628,7 +649,7 @@ int main (int argc, char **argv) {
             mpz_set_str (tmp, argv[argi+1], 10);
             exp = mpz_get_ui (tmp);
             if (exp < 3) {printf ("Smallest Mersenne exponent must exceed 2.\n\n"); exit (1);}
-            if (mpz_cmp_ui (tmp, exp) != 0 || exp > 1073741824) {printf ("Mersenne exponent must not exceed 2^30 = 1073741824.\n\n"); exit (1);}
+            if (mpz_cmp_ui (tmp, exp) != 0 || exp > 1168999969) {printf ("Mersenne exponent must not exceed 1,168,999,969.\n\n"); exit (1);}
         } else
         if ((strcmp(argv[argi], "--base") == 0) || (strcmp(argv[argi], "--BASE") == 0)) {
             argi++;
@@ -691,7 +712,7 @@ int main (int argc, char **argv) {
                     mpz_set_str (tmp, argv[argi+1], 10);
                     exp = mpz_get_ui (tmp);
                     if (exp < 3) {printf ("Smallest Mersenne exponent must exceed 2.\n\n"); exit (1);}
-                    if (mpz_cmp_ui (tmp, exp) != 0 || exp > 1073741824) {printf ("Mersenne exponent must not exceed 2^30 = 1073741824.\n\n"); exit (1);}
+                    if (mpz_cmp_ui (tmp, exp) != 0 || exp > 1168999969) {printf ("Mersenne exponent must not exceed 1,168,999,969.\n\n"); exit (1);}
                 }
                 flags = strpbrk(argv[argi], "zZ");   // increment z to ensure we advance argument past number
                 if (flags != NULL && argi + z + 1 < argc) { mpz_set_str(B, argv[argi+1], 10); z++; }
@@ -947,7 +968,7 @@ int main (int argc, char **argv) {
 */
             }
         }
-    } else if (!known_factors) {        // Set up F for Mersenne exponents; known factors are unavailable (choose not to read them from proof)
+    } else {        // Set up F for Mersenne exponents; known factors are unavailable (choose not to read them from proof)
         if (debug) printf ("Calculate the Mersenne number M%lu = 2^%lu-1 and M%lu - 1\n", exp, exp, exp); fflush (stdout);
         mpz_mul_2exp (F, F, exp);       // F   = 2^exp
         mpz_sub_ui (F, F, 1L);          // F   = 2^exp - 1
@@ -1013,8 +1034,12 @@ int main (int argc, char **argv) {
                 }
             }
             if (known_factors) {
+                if (n_proof != exp) {
+                    printf ("Warning: proof file does not match the Mersenne exponent specified in the command line.\nProceeding using exponent from proof file.\n");
+                }
                 exp = n_proof;
                 if (debug) printf ("Calculate the Mersenne number M%lu = 2^%lu-1 and M%lu - 1\n", exp, exp, exp); fflush (stdout);
+                mpz_set_ui (F, 1L);
                 mpz_mul_2exp (F, F, exp);       // F   = 2^exp
                 mpz_sub_ui (F, F, 1L);          // F   = 2^exp - 1
                 mpz_sub_ui (Fm1, F, 1L);        // Fm1 = 2^exp - 2
@@ -1289,7 +1314,8 @@ int main (int argc, char **argv) {
     z = 0;
     // If json indicates we are testing a Mersenne for a cofactor result, or we are checking a proof or trying a primality test, then gwnum must be initialised
     if (json || !use_proof_res) {
-        printf ("Using %d threads in gwnum library\n", threads);
+        if (threads == 1) symb = ""; else symb = "s";
+        printf ("Using %d thread%s in gwnum library\n", symb, threads);
         fflush (stdout);
 
         k = 1;                          // k for modulo value
@@ -1323,7 +1349,7 @@ int main (int argc, char **argv) {
         if (verbose) {
             gwfft_description (&gwdata, line);
             printf ("fft_description: %s\n", line);
-            printf ("fftlen = %ld\n", fft_length);
+            printf ("fftlen = %d\n", fft_length);
             printf ("near_fft_limit = %d\n", gwnear_fft_limit (&gwdata, (double)3.0));
             printf ("\n");
         }
@@ -1411,8 +1437,8 @@ int main (int argc, char **argv) {
         if (interim || all_int || j_progress_inc < x) {
             if (jacobi == -1) printf ("Calculating %ld", x); else printf ("Calculating %ld", x+1);
             printf (" modular squaring iterations from base %lu:\n", mpz_get_ui (GMPbase));
-            if (exp > 36 && (interim || all_int)) printf ("Interim residues:                       |      Selfridge - Hurwitz residues\nIteration              mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1\n");
         }
+        if (exp > 36) printf ("Interim residues:                       |      Selfridge - Hurwitz residues\nIteration              mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1\n");
 
         // Almost all the runtime is in the following loop
         j = 1;
@@ -1452,30 +1478,31 @@ int main (int argc, char **argv) {
                     len = gwtobinary64 (&gwdata, h_gw, r_bin, r_bin_buf_len);
                     mpz_import (H, len, -1, 8, 0, 0, r_bin);
                     if (mpz_cmp (G, H) == 0) {              // Compare G (equation [2]) and H (equation [3])
-                        if (debug || (j % j_progress_inc == 0 && j > 0) || j + gerbicz > x) printf ("%10ld (%5.1f%%), %ss/iter: %9.3lf | GEC passed      Wall time = %4d:%02d:%02d (HH:MM:SS)\n", j, 100.0 * j / x, symb, ms_per_iter, wall_hours, wall_mins, wall_secs);
+                        printf ("%10ld (%5.1f%%), %ss/iter: %9.3lf | GEC passed      Wall time = %4d:%02d:%02d (HH:MM:SS)\n", j, 100.0 * j / x, symb, ms_per_iter, wall_hours, wall_mins, wall_secs);
                         gwcopy (&gwdata, g_gw, j_gw);       // Save roll back variables of d(t) and u(t)
                         gwcopy (&gwdata, r_gw, k_gw);
                     } else {
-                        if (debug || (j % j_progress_inc == 0 && j > 0) || j + gerbicz > x) printf ("%10ld (%5.1f%%), %ss/iter: %9.3lf | GEC rollback    Wall time = %4d:%02d:%02d (HH:MM:SS)\n", j, 100.0 * j / x, symb, ms_per_iter, wall_hours, wall_mins, wall_secs);
+                        printf ("%10ld (%5.1f%%), %ss/iter: %9.3lf | GEC rollback    Wall time = %4d:%02d:%02d (HH:MM:SS)\n", j, 100.0 * j / x, symb, ms_per_iter, wall_hours, wall_mins, wall_secs);
                         rollback++;
                         gwcopy (&gwdata, j_gw, g_gw);       // Restore from previously saved rollback point
                         gwcopy (&gwdata, k_gw, r_gw);
-                        if (j == gsq || rollback > 7) {
-                            j = 1;
+                        if (j <= gsq || rollback > 7) {
                             if (rollback > 7) {
                                 printf ("Too many rollbacks at %lu; restarting calculation\n", j);
                                 binary64togw (&gwdata, &GWbase, 1L, g_gw);
                                 binary64togw (&gwdata, &GWbase, 1L, h_gw);
                                 binary64togw (&gwdata, &GWbase, 1L, j_gw);
                                 binary64togw (&gwdata, &GWbase, 1L, k_gw);
-                                gwsquare2_carefully (&gwdata, g_gw, r_gw);
+                                binary64togw (&gwdata, &GWbase, 1L, r_gw);
                                 rollback = 0;
                                 reset++;
                             }
+                            j = 0;
                         } else {
                             if (j % gsq == 0) j -= gsq; else j -= j % gsq;
                         }
                     }
+                    fflush (stdout);
                 }
             }
             k = 0;                              // Use k to obtain a residue under certain conditions
@@ -1540,9 +1567,6 @@ int main (int argc, char **argv) {
             } else  printf ("P%lspin P%d residue: length = %d words, %016lx %016lx ... %016lx %016lx\n", pe, m, len, r_bin[len-1], r_bin[len-2], r_bin[1], r_bin[0]);
         }
         if (jacobi == -1 || debug || interim || all_int) { // if jacobi is not -1, we do *not* have a valid Pepin test base (but we may still be able to do a Suyama test)
-            if (exp > 36 && !interim && !all_int) {
-                printf ("                                        |      Selfridge - Hurwitz residues\n                       mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1\n");
-            }
             if (m == 0 || jacobi != -1) print_residues (P, binary, SH, "Penultimate"); else print_residues (P, binary, m, "Pepin");
             if (super_verbose || (verbose && m > 0 && m < 12)) {
                 printf ("\nP%d == ", m);
@@ -1787,7 +1811,7 @@ int main (int argc, char **argv) {
         // Crandall & Pomerance (2000) call this a binary ladder exponentiation (algorithm 9.3.2)
         j = mpz_sizeinbase (Q, 2L);
         mpz_set (B, GMPbase);
-        mpz_set_ui (tmp, 1L); if (debug) printf ("Generating b^(Q-1), Q-1 = "); // use debug if you are concerned it doesn’t work properly!
+        mpz_set_ui (tmp, 1L); if (debug) printf ("Generating b^(Q-1), Q-1 = "); // use debug and verbose if you are concerned it doesn’t work properly!
         for (i = j - 1; i > 0; i--) {
             x = mpz_tstbit (Q, i);
             if (x == 1 && i > 0 && i < j - 1) {mpz_mul (B, B, GMPbase); mpz_add_ui (tmp, tmp, 1L); }
@@ -1865,11 +1889,11 @@ fast_exit:
         sprintf (strchr(line, '\0'), "%s, \"res2048\":\"", symb);
         printf ("%s", line); fprintf (fptr, "%s", line);
         mpz_out_str (stdout, 16, tmp); mpz_out_str (fptr, 16, tmp);
-        if (fft_length) printf ("\", \"fft-length\":%d", fft_length); fprintf (fptr, "\", \"fft-length\":%d", fft_length);
+        printf ("\", \"fft-length\":%d", fft_length); fprintf (fptr, "\", \"fft-length\":%d", fft_length);
         time_block = gmtime(&current_time);
         strftime(time_string, TIME_STRING_LEN, "%Y-%m-%d %X", time_block);
         if (exclude && use_proof_res) symb = "1"; else symb = "0"; // error code 00000001 indicates a proof was not validated to obtain this result
-        sprintf (line, "\", \"shift-count\":0, \"error-code\":\"0000000%s\", \"program\":{\"name\":\"%s\", \"version\":\"%s\", \"port\":10}, \"timestamp\":\"%s\"", symb, prog_name, prog_vers, time_string);
+        sprintf (line, "\", \"shift-count\":0, \"error-code\":\"0000000%s\", \"program\":{\"name\":\"%s\", \"version\":\"%s\", \"port\":%d}, \"timestamp\":\"%s\"", symb, prog_name, prog_vers, PORT, time_string);
         printf ("%s", line); fprintf (fptr, "%s", line);
         if (n_fact > 0) {
             printf (", \"known-factors\":["); fprintf (fptr, ", \"known-factors\":[");
