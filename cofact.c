@@ -1348,7 +1348,7 @@ int main (int argc, char **argv) {
         if (verbose) {
             gwfft_description (&gwdata, line);
             printf ("fft_description: %s\n", line);
-            printf ("fftlen = %ld\n", fft_length);
+            printf ("fftlen = %d\n", fft_length);
             printf ("near_fft_limit = %d\n", gwnear_fft_limit (&gwdata, (double)3.0));
             printf ("\n");
         }
@@ -1477,26 +1477,26 @@ int main (int argc, char **argv) {
                     len = gwtobinary64 (&gwdata, h_gw, r_bin, r_bin_buf_len);
                     mpz_import (H, len, -1, 8, 0, 0, r_bin);
                     if (mpz_cmp (G, H) == 0) {              // Compare G (equation [2]) and H (equation [3])
-                        if (debug || (j % j_progress_inc == 0 && j > 0) || j + gerbicz > x) printf ("%10ld (%5.1f%%), %ss/iter: %9.3lf | GEC passed      Wall time = %4d:%02d:%02d (HH:MM:SS)\n", j, 100.0 * j / x, symb, ms_per_iter, wall_hours, wall_mins, wall_secs);
+                        if (debug || (j % j_progress_inc == 0 && j > 0) || (j % gsq == 0) || j + gerbicz > x) printf ("%10ld (%5.1f%%), %ss/iter: %9.3lf | GEC passed      Wall time = %4d:%02d:%02d (HH:MM:SS)\n", j, 100.0 * j / x, symb, ms_per_iter, wall_hours, wall_mins, wall_secs);
                         gwcopy (&gwdata, g_gw, j_gw);       // Save roll back variables of d(t) and u(t)
                         gwcopy (&gwdata, r_gw, k_gw);
                     } else {
-                        if (debug || (j % j_progress_inc == 0 && j > 0) || j + gerbicz > x) printf ("%10ld (%5.1f%%), %ss/iter: %9.3lf | GEC rollback    Wall time = %4d:%02d:%02d (HH:MM:SS)\n", j, 100.0 * j / x, symb, ms_per_iter, wall_hours, wall_mins, wall_secs);
+                        if (debug || (j % j_progress_inc == 0 && j > 0) || (j % gsq == 0) || j + gerbicz > x) printf ("%10ld (%5.1f%%), %ss/iter: %9.3lf | GEC rollback    Wall time = %4d:%02d:%02d (HH:MM:SS)\n", j, 100.0 * j / x, symb, ms_per_iter, wall_hours, wall_mins, wall_secs);
                         rollback++;
                         gwcopy (&gwdata, j_gw, g_gw);       // Restore from previously saved rollback point
                         gwcopy (&gwdata, k_gw, r_gw);
-                        if (j == gsq || rollback > 7) {
-                            j = 1;
+                        if (j <= gsq || rollback > 7) {
                             if (rollback > 7) {
                                 printf ("Too many rollbacks at %lu; restarting calculation\n", j);
                                 binary64togw (&gwdata, &GWbase, 1L, g_gw);
                                 binary64togw (&gwdata, &GWbase, 1L, h_gw);
                                 binary64togw (&gwdata, &GWbase, 1L, j_gw);
                                 binary64togw (&gwdata, &GWbase, 1L, k_gw);
-                                gwsquare2_carefully (&gwdata, g_gw, r_gw);
+                                binary64togw (&gwdata, &GWbase, 1L, r_gw);
                                 rollback = 0;
                                 reset++;
                             }
+                            j = 0;
                         } else {
                             if (j % gsq == 0) j -= gsq; else j -= j % gsq;
                         }
