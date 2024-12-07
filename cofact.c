@@ -649,7 +649,7 @@ int main (int argc, char **argv) {
             mpz_set_str (tmp, argv[argi+1], 10);
             exp = mpz_get_ui (tmp);
             if (exp < 3) {printf ("Smallest Mersenne exponent must exceed 2.\n\n"); exit (1);}
-            if (mpz_cmp_ui (tmp, exp) != 0 || exp > 1073741824) {printf ("Mersenne exponent must not exceed 2^30 = 1073741824.\n\n"); exit (1);}
+            if (mpz_cmp_ui (tmp, exp) != 0 || exp > 1168999969) {printf ("Mersenne exponent must not exceed 1,168,999,969.\n\n"); exit (1);}
         } else
         if ((strcmp(argv[argi], "--base") == 0) || (strcmp(argv[argi], "--BASE") == 0)) {
             argi++;
@@ -712,7 +712,7 @@ int main (int argc, char **argv) {
                     mpz_set_str (tmp, argv[argi+1], 10);
                     exp = mpz_get_ui (tmp);
                     if (exp < 3) {printf ("Smallest Mersenne exponent must exceed 2.\n\n"); exit (1);}
-                    if (mpz_cmp_ui (tmp, exp) != 0 || exp > 1073741824) {printf ("Mersenne exponent must not exceed 2^30 = 1073741824.\n\n"); exit (1);}
+                    if (mpz_cmp_ui (tmp, exp) != 0 || exp > 1168999969) {printf ("Mersenne exponent must not exceed 1,168,999,969.\n\n"); exit (1);}
                 }
                 flags = strpbrk(argv[argi], "zZ");   // increment z to ensure we advance argument past number
                 if (flags != NULL && argi + z + 1 < argc) { mpz_set_str(B, argv[argi+1], 10); z++; }
