@@ -36,4 +36,6 @@ ln -s $1/sha3.c sha3.c
 ln -s $1/sha3.h sha3.h
 make
 rm *.h exponentiate.c gwnum.a proof_hash.c sha3.c
+echo '
+'
 ./cofact -h
