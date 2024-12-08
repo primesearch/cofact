@@ -319,7 +319,7 @@ void usage (int verbose) {
     printf ("    -a, -b, -i, -m, -o, -p, -x  for various modifications to the P%lspin or Suyama test output;\n", pe);
     printf ("    -c or -u  filename          to either check or use a proof file (but you cannot specify both);\n");
     printf ("    -d, -v                      for debug or verbose modes;\n");
-    printf ("    -g  number                  changing the default interval of Gerbicz error checking;\n");
+    printf ("    -g  number                  for changing the default interval of Gerbicz error checking;\n");
     printf ("    -h or -hv                   for help or verbose help;\n");
     printf ("    -k                          to use the known factors for a Fermat number, or if you have a\n");
     printf ("                                proof of a Mersenne number, the file header may list known primes;\n");
@@ -390,6 +390,7 @@ int main (int argc, char **argv) {
     unsigned long j;                // Iteration counter for square/mod loop
     unsigned long j_progress;       // The next j at which to print progress
     unsigned long j_progress_inc;   // The j increment at which to report progress
+    unsigned long j_print;          // Flag for when the j increment has been reached
     unsigned long k;                // Always 1 for a Fermat number
     long c;                         // Always 1 for a Fermat number, -1 for a Mersenne number
     int threads;                    // Number of threads (cores) to use in gwnum library
@@ -400,8 +401,8 @@ int main (int argc, char **argv) {
     int check_proof_res;            // Flags -c or -cpr to enable checking the mprime proof file A residue
     int debug;                      // Flag -d to enable printing debug information
     int exclude;                    // Flag -e excludes verification of a proof when generating a JSON result
-    int gerbicz, gsq, rollback;     // Flag -g reserved; Gerbicz error checking variables
-    int reset;
+    int gerbicz, gec, gsq;          // Flag -g for setting Gerbicz error checking variables
+    int rollback, reset;
     int help;                       // Flag -h for printing help
     int interim;                    // Flag -i to print select interim residues
     int json;                       // Flag -j to print a JSON
@@ -430,7 +431,7 @@ int main (int argc, char **argv) {
     pe = (wchar_t *) malloc(sizeof(wchar_t) * 2);
     pe[0] = 0x00e9;
     pe[1] = 0;
-    setlocale(P_ALL, "");           // However, Unicode handling in C is so dodgy that this is disabled in the default code.
+    setlocale(P_ALL, "");           // However, Unicode handling in C is dodgy. Disable this if it causes a problem.
 
     // Various time variables
     static struct timeval tv_start, tv_stop, tv_progress_start, tv_progress_stop;
@@ -530,6 +531,9 @@ int main (int argc, char **argv) {
     check_proof_res = 0;    // Default to not checking a proof A residue
     debug = 0;              // Default to no debug
     exclude = 0;            // Default to validating proofs
+    gerbicz = 1000;         // Default interval for Gerbicz error check = 1000
+    rollback = 0;
+    reset = 0;
     help = 0;               // Default to bypass help
     interim = 0;            // Default to print no interim residues
     json = 0;               // Default to not printing JSON, or user and computer fields
@@ -541,9 +545,6 @@ int main (int argc, char **argv) {
     super_verbose = 0;      // Default to no super verbose
     use_proof_res = 0;      // Default to calculating the A residue
     verbose = 0;            // Default to no verbose
-    gerbicz = 1000;         // Default interval for Gerbicz error check = 1000
-    rollback = 0;
-    reset = 0;
     who = 0;
     exp = 0;                // Default to no Suyama testing of a Mersenne
     m = 0;                  // Invalid value for Fermat numbers, to make sure m is later set
@@ -968,7 +969,7 @@ int main (int argc, char **argv) {
 */
             }
         }
-    } else {        // Set up F for Mersenne exponents; known factors are unavailable (choose not to read them from proof)
+    } else {        // Set up F for Mersenne exponents
         if (debug) printf ("Calculate the Mersenne number M%lu = 2^%lu-1 and M%lu - 1\n", exp, exp, exp); fflush (stdout);
         mpz_mul_2exp (F, F, exp);       // F   = 2^exp
         mpz_sub_ui (F, F, 1L);          // F   = 2^exp - 1
@@ -1315,7 +1316,7 @@ int main (int argc, char **argv) {
     // If json indicates we are testing a Mersenne for a cofactor result, or we are checking a proof or trying a primality test, then gwnum must be initialised
     if (json || !use_proof_res) {
         if (threads == 1) symb = ""; else symb = "s";
-        printf ("Using %d thread%s in gwnum library\n", symb, threads);
+        printf ("Using %d thread%s in gwnum library\n", threads, symb);
         fflush (stdout);
 
         k = 1;                          // k for modulo value
@@ -1409,10 +1410,10 @@ int main (int argc, char **argv) {
         // Initialize r_gw = base for Pepin test = 3
         GWbase = mpz_get_ui (GMPbase);
         binary64togw (&gwdata, &GWbase, 1L, r_gw);
-        binary64togw (&gwdata, &GWbase, 1L, g_gw);
-        binary64togw (&gwdata, &GWbase, 1L, h_gw);
-        binary64togw (&gwdata, &GWbase, 1L, j_gw);
-        binary64togw (&gwdata, &GWbase, 1L, k_gw);
+        gwcopy (&gwdata, r_gw, g_gw);
+        gwcopy (&gwdata, r_gw, h_gw);
+        gwcopy (&gwdata, r_gw, j_gw);
+        gwcopy (&gwdata, r_gw, k_gw);
         gw_clear_maxerr (&gwdata);
 
         // Create buffer for transfer of residues from GWNUM to GMP
@@ -1420,13 +1421,14 @@ int main (int argc, char **argv) {
         r_bin = (unsigned long *) calloc (r_bin_buf_len, sizeof (unsigned long));
 
         x = exp - 1;                                            // Number of Pepin test square/mod steps: x = 2^n - 1
+        if (gerbicz == 1000 && exp < 1000000) gerbicz = 100;
         gsq = gerbicz * gerbicz;
 
         // If the progress print increment has not been set and the test is likely to take 
-        // more than a second (at least 100000 steps), set it by default to 10% of the run
+        // more than several seconds (at least 1000000 steps), set it by default to 10% of the run
         if (j_progress_inc == 0) {
             j_progress_inc = x;
-            if (x > 100000) j_progress_inc = x / 10;
+            if (x > 1000000) j_progress_inc = x / 10;
         }
 
         j_progress = j_progress_inc;
@@ -1455,7 +1457,10 @@ int main (int argc, char **argv) {
                 printf ("Roundoff warning: k = %ld, m = %d, iteration = %ld, maxerr = %22.20lf\n", k, m, j, maxerr);
                 gw_clear_maxerr (&gwdata);
             }
-            if (j % gerbicz == 0 || (j_progress_inc > 0 && j >= j_progress)) {
+            if (j % gerbicz == 0) gec = 1; else gec = 0;
+            if (j % gsq == 0 || (gec == 1 && j + gerbicz > x)) gec = 2;
+            if (j_progress_inc > 0 && j >= j_progress) j_print = 1; else j_print = 0;
+            if (gec == 2 || j_print == 1) {
                 (void) gettimeofday(&tv_progress_stop, (struct timezone *) 0);
                 wall_time = tv_secs(tv_progress_stop) - tv_secs(tv_start);
                 wall_hours = wall_time / 3600;
@@ -1465,10 +1470,11 @@ int main (int argc, char **argv) {
                     else ms_per_iter = (tv_msecs(tv_progress_stop) - tv_msecs(tv_progress_start)) / (j % j_progress_inc);
                 if (ms_per_iter > 10000) {ms_per_iter = ms_per_iter / 1000; symb = " ";} else symb = "m";
             }
-            if (j % gerbicz == 0) {                         // Gerbicz error check; initially d(0) = u(0) = GWbase; we also save each previous d(t) as h_gw
-                gwcopy (&gwdata, g_gw, h_gw);               // d(t) = u(0)*u(L)*u(2*L)*...*u(t*L) mod N  [1]
-                gwmul3 (&gwdata, g_gw, r_gw, g_gw, 0);      // d(t+1)=d(t)*u((t+1)*L) mod N  [2]    Multiply each previous g_gw by r_gw to obtain the new g_gw;
-                if ((j % gsq == 0) || j + gerbicz > x) {    // d(t+1)=u(0)*d(t)^(2^L) mod N  [3]    Exponentiate previous d(t) (stored as h_gw) and multiply by u(0) (GWbase).
+            k = 0;                                      // k will be used to obtain and print a residue under certain conditions
+            if (gec > 0) {                              // Gerbicz error check; initially d(0) = u(0) = GWbase; we also save each previous d(t) as h_gw
+                gwcopy (&gwdata, g_gw, h_gw);           // d(t) = u(0)*u(L)*u(2*L)*...*u(t*L) mod N  [1]
+                gwmul3 (&gwdata, g_gw, r_gw, g_gw, 0);  // d(t+1)=d(t)*u((t+1)*L) mod N  [2]    Multiply each previous g_gw by r_gw to obtain the new g_gw;
+                if (gec == 2) {                         // d(t+1)=u(0)*d(t)^(2^L) mod N  [3]    Exponentiate previous d(t) (stored as h_gw) and multiply by u(0) (GWbase).
                     for (q = 0; q < gerbicz; q++) {
                         gwsquare2 (&gwdata, h_gw, h_gw, 0);
                     }
@@ -1477,23 +1483,24 @@ int main (int argc, char **argv) {
                     mpz_import (G, len, -1, 8, 0, 0, r_bin);
                     len = gwtobinary64 (&gwdata, h_gw, r_bin, r_bin_buf_len);
                     mpz_import (H, len, -1, 8, 0, 0, r_bin);
-                    if (mpz_cmp (G, H) == 0) {              // Compare G (equation [2]) and H (equation [3])
+                    if (mpz_cmp (G, H) == 0) {          // Compare G (equation [2]) and H (equation [3])
+                        k = 1;
                         printf ("%10ld (%5.1f%%), %ss/iter: %9.3lf | GEC passed      Wall time = %4d:%02d:%02d (HH:MM:SS)\n", j, 100.0 * j / x, symb, ms_per_iter, wall_hours, wall_mins, wall_secs);
-                        gwcopy (&gwdata, g_gw, j_gw);       // Save roll back variables of d(t) and u(t)
+                        gwcopy (&gwdata, g_gw, j_gw);   // Save roll back variables of d(t) and u(t)
                         gwcopy (&gwdata, r_gw, k_gw);
                     } else {
                         printf ("%10ld (%5.1f%%), %ss/iter: %9.3lf | GEC rollback    Wall time = %4d:%02d:%02d (HH:MM:SS)\n", j, 100.0 * j / x, symb, ms_per_iter, wall_hours, wall_mins, wall_secs);
                         rollback++;
-                        gwcopy (&gwdata, j_gw, g_gw);       // Restore from previously saved rollback point
+                        gwcopy (&gwdata, j_gw, g_gw);   // Restore from previously saved rollback point
                         gwcopy (&gwdata, k_gw, r_gw);
                         if (j <= gsq || rollback > 7) {
                             if (rollback > 7) {
                                 printf ("Too many rollbacks at %lu; restarting calculation\n", j);
-                                binary64togw (&gwdata, &GWbase, 1L, g_gw);
-                                binary64togw (&gwdata, &GWbase, 1L, h_gw);
-                                binary64togw (&gwdata, &GWbase, 1L, j_gw);
-                                binary64togw (&gwdata, &GWbase, 1L, k_gw);
                                 binary64togw (&gwdata, &GWbase, 1L, r_gw);
+                                gwcopy (&gwdata, r_gw, g_gw);
+                                gwcopy (&gwdata, r_gw, h_gw);
+                                gwcopy (&gwdata, r_gw, j_gw);
+                                gwcopy (&gwdata, r_gw, k_gw);
                                 rollback = 0;
                                 reset++;
                             }
@@ -1505,47 +1512,34 @@ int main (int argc, char **argv) {
                     fflush (stdout);
                 }
             }
-            k = 0;                              // Use k to obtain a residue under certain conditions
+            if (j_print == 1 && gec < 2 && exp > 36) {
+                printf ("%10ld (%5.1f%%), %ss/iter: %9.3lf |                 Wall time = %4d:%02d:%02d (HH:MM:SS)\n", j, 100.0 * j / x, symb, ms_per_iter, wall_hours, wall_mins, wall_secs);
+                fflush (stdout);
+            }
             if (all_int || j == x) k = 1;
-            else if (j_progress_inc > 0 && j >= j_progress && interim) k = 1;
-            else if (interim && (((j == x - m - 1) && m > 2) || (m == 17 && j == 20) || (m == 22 && (j == 126000 || j == 354000 || j == 486000 || j == 790000 || j == 1078000 || j == 1430000 || j == 1854000 || j == 2390000 || j == 2718000 || j == 3046000 || j == 3542000 || j == 3838000 || j == 4182000)))) k = 1;
-            // Convert Pepin residue r_gw to r_bin to P
+            if (interim && (j_print == 1 || ((j == x - m - 1) && m > 2) || (m == 17 && j == 20) || (m == 22 && (j == 126000 || j == 354000 || j == 486000 || j == 790000 || j == 1078000 || j == 1430000 || j == 1854000 || j == 2390000 || j == 2718000 || j == 3046000 || j == 3542000 || j == 3838000 || j == 4182000)))) k = 1;
             if (k == 1) {
+                // Convert Pepin residue r_gw to r_bin to P
                 len = gwtobinary64 (&gwdata, r_gw, r_bin, r_bin_buf_len);
                 mpz_import (P, len, -1, 8, 0, 0, r_bin);
-            }
-            if (j_progress_inc > 0 && j >= j_progress) {
-                if (j % gsq != 0) printf ("%10ld (%5.1f%%), %ss/iter: %9.3lf |                 Wall time = %4d:%02d:%02d (HH:MM:SS)\n", j, 100.0 * j / x, symb, ms_per_iter, wall_hours, wall_mins, wall_secs);
-                if (interim) {
-                    printf ("           ");
-                    print_residues (P, binary, SH, "Interim");
-                }
-                fflush (stdout);
-                j_progress += j_progress_inc;
-                tv_progress_start.tv_sec  = tv_progress_stop.tv_sec;
-                tv_progress_start.tv_usec = tv_progress_stop.tv_usec;
-            }
-            if (all_int && j < x) {
-                printf ("%10ld ", j);
-                print_residues (P, binary, SH, "Interim");
-                if (x == j + 1) {
-                    printf ("\n");
-                }
-                fflush (stdout);
-            }
-            if (interim || all_int) {
-                if (((j == x - m - 1) && m > 2) || (m == 17 && j == 20) || (m == 22 && (j == 126000 || j == 354000 || j == 486000 || j == 790000 || j == 1078000 || j == 1430000 || j == 1854000 || j == 2390000 || j == 2718000 || j == 3046000 || j == 3542000 || j == 3838000 || j == 4182000))) {
-                    printf ("%10ld ", j);
-                    print_residues (P, binary, SH, "Interim");
-                    if (super_verbose || (verbose && m > 0 && m < 12)) {
-                        printf ("\n");
-                        mpz_out_str (stdout, 10, GMPbase);
-                        printf ("^2^%lu == ", j);
+                if (j != x) {
+                    if (j_print == 1 || (gec == 2 && (all_int || interim))) printf ("           "); else if (gec != 2) printf ("%10ld ", j);
+                    if (all_int || interim) print_residues (P, binary, SH, "Interim");
+                    if ((all_int || interim) && j == x - m - 1 && (super_verbose || (verbose && m > 0 && m < 12))) {
+                        printf ("\n%lu^(2^%lu) == ", mpz_get_ui (GMPbase), j);
                         mpz_out_str (stdout, 10, P);
                         printf (" modulo F%d\n\n",m);
                     }
                     fflush (stdout);
                 }
+            }
+            if (j_print == 1) {
+                j_progress += j_progress_inc;
+                tv_progress_start.tv_sec  = tv_progress_stop.tv_sec;
+                tv_progress_start.tv_usec = tv_progress_stop.tv_usec;
+            }
+            if (j == x - 1) {
+                if (exp > 36) printf ("                                        |\n"); else printf ("\n");
             }
             j++;
         }
