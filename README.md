@@ -50,9 +50,9 @@ You may check or use any proof file for a Fermat number (or Mersenne number), wi
 though without factors `cofact` will only yield the $A$ value of the cofactor test.
 
 This may be summed up as `cofact` having 3 basic modes of operation:
-* __Mode 1__: run a primality test on a Fermat number (Pépin’s test), and optionally a probable primality test on the cofactor (Suyama’s test) if factors are provided.
-* __Mode 2__: run a primality test on a Fermat number and check the computation against a proof file, and optionally running the cofactor test if factors are provided.
-* __Mode 3__: skip primality testing of the Fermat number, and use a proof file to run the cofactor test with provided factors.
+* __Mode 1__: runs a primality test on a Fermat number (Pépin’s test), and optionally runs a probable primality test on the cofactor (Suyama’s test) if factors are provided.
+* __Mode 2__: runs a primality test on a Fermat number and checks the computation against a proof file, and optionally runs the cofactor test if factors are provided.
+* __Mode 3__: skips primality testing of the Fermat number, and uses a proof file to run the cofactor test with provided factors.
 
 ### Testing of Mersenne numbers
 
@@ -65,7 +65,7 @@ Mode 1 | Runs Pépin test; optionally, runs Suyama test | Runs Fermat-PRP test; 
 Mode 2 | Runs Pépin test; optionally, runs Suyama test; proof file required | Runs Fermat-PRP test; optionally, runs Suyama test; proof file required | Runs Fermat-PRP (type 1 test), or Fermat-PRP and Suyama with factors (type 5 test); proof file is verified for correctness
 Mode 3 | Runs Suyama test only; proof file required; does not use `gwnum` | Runs Suyama test only; proof file required; does not use `gwnum` | Runs Suyama test only; proof file is verified for correctness using `gwnum`
 
-The Pépin or Fermat-PRP tests, along with proof verification, all require the `gwnum` library and can run multi-threaded. In mode 2 `cofact` will only check the final residue calculated matches the Suyama $A$ residue in a proof file, unless reporting is enabled with the `-j` option, in which case the correctness of the proof file will also be verified. Since this may amount to repeating the same computation more than once, the reporting option is intended either for Mode 1 with Mersenne exponents too small to generate proofs, or Mode 3 for all other Mersenne numbers using a proof furnished from another program (e.g. mprime or gpuOwL).
+The Pépin or Fermat-PRP tests, along with proof verification, all require the `gwnum` library and can run multi-threaded. In mode 2 `cofact` will only check the final residue calculated matches the Suyama $A$ residue in a proof file, unless reporting is enabled with the `-j` option, in which case the correctness of the proof file will also be verified (if the proof is known to be valid, the verification can be bypassed with `-e`). Since this process may amount to repeating the same computation more than once, the reporting option is intended either for Mode 1 with Mersenne exponents too small to generate proofs, or for Mode 3 for all other Mersenne numbers using a proof furnished from another program (e.g. `mprime` or `GpuOwl`).
 
 `cofact`’s Mode 3 can be used with proofs to submit results (including a Res2048 value) for Mersenne numbers without factors (Type 1) or with factors (Type 5); this is especially useful if a result was initially submitted including only the smaller Res64 value.
 
@@ -76,8 +76,8 @@ Command line option | Function
 --------------------|------------------------------
 -cpr _filename_     | Run a primality test and then check the result against a proof file; if factors are supplied, run the cofactor test
 -upr _filename_     | Skip primality testing and use the proof file to immediately run the cofactor test
--p _n_              | Print a progress report every _n_ iterations
--t _n_              | Run `cofact` with _n_ threads
+-p _number_         | Print a progress report every _number_ iterations
+-t _number_         | Run `cofact` with _number_ threads
 -h                  | Print basic help
 -v                  | Print verbose test information
 
@@ -167,11 +167,11 @@ obtained by $2^m-1$ squarings of the base $b$, modulo $F$. Pépin’s theorem is
 primality test for bases such as 3, 5, 6, and so on. One further modular squaring $A = P^2$ 
 (mod $F$) then follows to prepare for the cofactor test below.
 
-A similar test for Mersenne numbers is _not_ definitive (a different test, the Lucas–Lehmer test is 
-used for that) but serves to determine whether the Mersenne number is _probably_ prime, which is 
-sufficient for our purposes. Here, $R = b^{M - 1} \equiv 1$ (mod $M$) is used to 
-establish probable primality, using Fermat’s little theorem. Since $M = 2^p - 1$, evaluating $R$ 
-requires $p$ squarings of the base $b$ followed by a modular division of $b^2$ to reach the 
+A similar test for Mersenne numbers is _not_ definitive (a different test, the Lucas–Lehmer test, is 
+used instead for definitively proving primality) but serves to determine whether the Mersenne number 
+is _probably_ prime, which is sufficient for our purposes. Here, $R = b^{M - 1} \equiv 1$ (mod $M$) 
+is used to establish probable primality, using Fermat’s little theorem. Since $M = 2^p - 1$, evaluating 
+$R$ requires $p$ squarings of the base $b$ followed by a modular division of $b^2$ to reach the 
 Fermat-PRP result, also described as value $A$ of the cofactor test, which was devised by Hiromi 
 Suyama in 1984 and subsequently refined by Hendrik W. Lenstra, Jr.
 
@@ -243,7 +243,7 @@ Short option   | Long option          | Function
 -k             |--known-factors       | Use known factors of Fermat numbers (as of 2012) in place of supplying them after the exponent. When testing a Mersenne number in combination with checking or using a VDF proof, `cofact` can read the proof file’s description to import any known factors saved in the file header.
 -m             |--mod-c               | Reduce Suyama $A$ and $B$ values, modulo $C$ and print residues.
 -o             |--octal               | Print Selfridge–Hurwitz residues in octal as well as decimal.
--p _iterations_|--iterations          | Display progress every _iterations_ modular squarings (the default is 10% of a total run in excess of 100,000). If `-i` is also specified, residues will be printed at each progress point.
+-p _iterations_|--iterations          | Display progress every _iterations_ modular squarings (the default is 10% of a total run in excess of 1,000,000). If `-i` is also specified, residues will be printed at each progress point.
 -q _string_    |--computer            | Supplies a PrimeNet computer name for reporting results (see `-j`).
 -sep           |--separator           | Draw a horizontal line after a test.
 -t _threads_   |--threads             | Use multi-threaded `gwnum` by specifying the number of _threads_ (the default is single-threaded).
