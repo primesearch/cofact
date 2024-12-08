@@ -152,7 +152,7 @@ conceivable equivalent test on Mersenne exponents similarly allows complete repl
 ## Mathematics
 The Fermat numbers have the form $2^{2^m}+1$, $m \ge 0$, and the Mersenne numbers have the form 
 $2^p - 1$, where $p$ is a prime number. The five smallest Fermat numbers are prime, and of the 
-first ten million prime numbers, 51 prime exponents $p$ are currently known to give rise to a 
+first ten million prime numbers, 52 prime exponents $p$ are currently known to give rise to a 
 Mersenne prime. This utility can run a primality or probable primality test on any of these 
 numbers in such a way that the test allows further testing of the cofactor, if the Fermat or 
 Mersenne number is composite and has one or more known factors.
@@ -191,7 +191,7 @@ Most of the smaller calculations in `cofact` use the GNU Multiple Precision (GMP
 library, however for the heavy lifting of modular squarings required by the Pépin test or 
 Fermat-PRP test, the `gwnum` library provides better, multi-threaded performance. `cofact` 
 does not save interim results however, so for any Mersenne exponent greater than a million, 
-a dedicated piece of software such as `mprime` or `gpuOwL` will provide save and restart 
+a dedicated piece of software such as `mprime` or `GpuOwl` will provide save and restart 
 functionality, and may generate a proof which `cofact` can then utilise to rerun the Suyama 
 test whenever new factors are discovered. The modular squaring uses Robert Gerbicz’s ingenious 
 [error checking](https://www.mersenneforum.org/node/16972) method.
@@ -236,7 +236,7 @@ Short option   | Long option          | Function
 -c _filename_  |--check-proof         | Check a VDF proof by computing the Fermat-PRP/Suyama $A$ residue for direct comparison. (This will be impractically lengthy for large exponents; most often you will want to use `-u` or `--use-proof` below.)
 -d             |--debug               | Print debug information.
 -e             |--do-not-verify       | Exclude a proof from being validated when printing reports for Mersenne cofactor tests. (Large proofs may take several hours to verify.)
--g _iterations_|--Gerbicz             | Change the interval for error checking (the default is 1 million). The minimum value allowed is 10,000 iterations. `cofact` will select the closest square number below or equal to the _number_ chosen.
+-g _iterations_|--Gerbicz             | Change the interval between error checking; the default is 1 million iterations with 0.1% overhead. The minimum value allowed is 10,000 iterations, which will be selected if fewer tan 1 million iterations are required. If another value is chosen using `-g`, then `cofact` will select the closest square number equal to or greater than the _iterations_ chosen.
 -h             |--help                | Print basic help (`-hv` and `-h -sv` are increasingly verbose).
 -i             |--interim-residues    | Print interim residues at various points (also see `-p` below).
 -j             |--report-json         | Print a `JSON` report string for a Mersenne cofactor test, to allow submission of cofactor results. PrimeNet user and computer names may be entered into the string (see `-w` and `-q`). If a proof file is used, it will be verified to ensure the final residue can be correctly generated from the file. Verification takes a fraction of time compared with the original computation.
