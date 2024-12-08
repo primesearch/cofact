@@ -1376,7 +1376,7 @@ int main (int argc, char **argv) {
         mpz_set (B, A_proof);
         i = 0;
         if (debug && !exclude) {printf ("Call to GW proof validation:\n\n"); fflush(stdout);}
-        if (!exclude) {
+        if (json && !exclude) {
             GWbase = mpz_get_ui (GMPbase);
             binary64togw (&gwdata, &GWbase, 1L, r_gw);
             gw_clear_maxerr (&gwdata);
