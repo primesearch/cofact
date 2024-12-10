@@ -1731,9 +1731,7 @@ int main (int argc, char **argv) {
                 mpz_tdiv_r (S, B, tmp);         // S == 2^exp - 2 (mod p - 1)
                 mpz_powm (B, GMPbase, S, fact[i]); // B == b^S (mod p), which should == A
                 if (mpz_cmp (P, B) == 0) {
-                    printf ("A == ");
-                    mpz_out_str (stdout, 10, GMPbase);
-                    printf ("^(2^%lu-2 mod ", exp);
+                    printf ("A == %lu^(2^%lu-2 mod ", mpz_get_ui (GMPbase), exp);
                     mpz_out_str (stdout, 10, tmp);
                     printf (") == ");
                     mpz_out_str (stdout, 10, B);
@@ -1822,12 +1820,19 @@ int main (int argc, char **argv) {
             u64togw (&gwdata, GWbase, r_gw);
             gwsetmulbyconst (&gwdata, GWbase);
             gw_clear_maxerr (&gwdata);
+            gwset_carefully_count (&gwdata, j);
             for (i = j - 1; i > 0; i--) {
                 x = mpz_tstbit (Q, i - 1);
                 mpz_mul_ui (tmp, tmp, 2L);
                 if (x == 1 && i > 1) {gwmul3 (&gwdata, r_gw, r_gw, r_gw, GWMUL_MULBYCONST); mpz_add_ui (tmp, tmp, 1L);}
-                    else {gwsquare2 (&gwdata, r_gw, r_gw, GWMUL_STARTNEXTFFT);}
-                if (debug && verbose && i > 1) {mpz_out_str (stdout, 10, tmp); printf (" ... ", x); fflush (stdout);}
+                else if (i > 1) gwsquare2 (&gwdata, r_gw, r_gw, GWMUL_STARTNEXTFFT);
+                else gwsquare2 (&gwdata, r_gw, r_gw, 0);
+                if (debug && verbose && i > 1) {mpz_out_str (stdout, 10, tmp); printf (" ... "); fflush (stdout);}
+                maxerr = gw_get_maxerr (&gwdata);
+                if (maxerr >= 0.45) {
+                    printf ("Roundoff warning: Q bit = %ld, maxerr = %22.20lf\n", i, maxerr);
+                    gw_clear_maxerr (&gwdata);
+                }
             }
             len = gwtobinary64 (&gwdata, r_gw, r_bin, r_bin_buf_len);
             mpz_import (B, len, -1, 8, 0, 0, r_bin);
