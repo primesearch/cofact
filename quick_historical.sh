@@ -7,8 +7,8 @@
 # (Proof files for F12 to F29 can be downloaded from https://64ordle.au/fermat/ and should be 
 # located in the same directory as this script.)
 #
-# This run should take less than an hour, as we exclude several mode 2 -cpr tests (i.e. running 
-# the full Pepin test) for three reasonably large Fermat numbers (F20, F22, and F24).
+# This run should take less than a quarter of an hour, as we exclude several mode 2 -cpr tests 
+# (i.e. running the full Pepin test) for three reasonably large Fermat numbers (F20, F22, and F24).
 #
 # To reduce overall runtime, the F22 run has been changed to a mode 3 -upr test (so that cofact 
 # only evaluates the Suyama test, reading from a proof file). Using a Pepin test here with the 
@@ -91,7 +91,7 @@ cofact -iv -sep 12 114689 26017793 63766529 190274191361
 echo "Suyama test on 1,187-digit cofactor of F12 (Baillie, 1986, 5 known factors):
 "
 cofact -sep 12 114689 26017793 63766529 190274191361 1256132134125569
-echo "Suyama test on 1,133-digit cofactor of F12 (Vang, Batalov et al., 2010, 6 known factors):
+echo "Suyama test on 1,133-digit cofactor of F12 (Vang, Batalov, Schindel, 2010, 6 known factors):
 "
 cofact -sep 12 114689 26017793 63766529 190274191361 1256132134125569 568630647535356955169033410940867804839360742060818433
 
@@ -140,7 +140,7 @@ echo "Selfridge-Hurwitz (1964) published interim residue of Pepin test at iterat
 echo "Suyama test on 39,444-digit cofactor of F17 (Baillie, 1987, 1 known factor):
 "
 cofact -ciov F17.proof -sep 17 31065037602817
-echo "Suyama test on 39,395-digit cofactor of F17 (Chia, Hoeglund, Sorbera, 2011, 2 known factors):
+echo "Suyama test on 39,395-digit cofactor of F17 (Chia, Sorbera, 2011, 2 known factors):
 "
 cofact -u F17.proof -sep 17 31065037602817 7751061099802522589358967058392886922693580423169
 
@@ -154,7 +154,7 @@ cofact -u F18.proof -sep 18 13631489 81274690703860512587777
 echo "Suyama test on 157,804-digit cofactor of F19 (Crandall, Doenias et al., 1993, 2 known factors):
 "
 cofact -mu F19.proof -sep 19 70525124609 646730219521
-echo "Suyama test on 157,770-digit cofactor of F19 (JRK, Kruppa et al., 2009, 3 known factors):
+echo "Suyama test on 157,770-digit cofactor of F19 (King, Kruppa, Childers, 2009, 3 known factors):
 "
 cofact -u F19.proof -sep 19 70525124609 646730219521 37590055514133754286524446080499713
 
@@ -190,34 +190,33 @@ cofact -upr F24.proof -sep 24
 #
 # For F25 to F30, mprime is much faster than cofact. So here we have cofact use the A residue from the 
 # mprime proof files and perform the Suyama test.
-# In this mode, the gwnum library is not used. So specifying multiple threads would have no effect on speed.
 
 echo "Suyama test on 10,100,842-digit cofactor of F25 (Yamada, Hoeglund, 2009, 3 known factors):
 "
-cofact -u F25.proof -sep 25 25991531462657 204393464266227713 2170072644496392193
+cofact -uf F25.proof -sep 25 25991531462657 204393464266227713 2170072644496392193
 
 echo "Suyama test on 20,201,768-digit cofactor of F26 (Hoeglund, 2009, 1 known factor):
 "
-cofact -u F26.proof -sep 26 76861124116481
+cofact -uf F26.proof -sep 26 76861124116481
 
 echo "Suyama test on 40,403,531-digit cofactor of F27 (Hoeglund, 2010, 2 known factors):
 "
-cofact -u F27.proof -sep 27 151413703311361 231292694251438081
+cofact -uf F27.proof -sep 27 151413703311361 231292694251438081
 
 echo "Suyama test on 80,807,103-digit cofactor of F28 (Mayer, 2022, 1 known factor):
 "
-cofact -u F28.proof -sep 28 1766730974551267606529
+cofact -uf F28.proof -sep 28 1766730974551267606529
 
 echo "Suyama test on 161,614,233-digit cofactor of F29 (Mayer, 2022, 1 known factor):
 "
-cofact -u F29.proof -sep 29 2405286912458753
+cofact -uf F29.proof -sep 29 2405286912458753
 
 # Feel free to try running the following if/when you have a proof of F30. It isn't efficient to use 
 # cofact to run Pepin tests at this size.
 
 # echo "Suyama test on 323,228,467-digit cofactor of F30 (Mayer, 2022, 2 known factors):"
 # ./cofact -u F30.proof -sep 30 640126220763137 1095981164658689
-# # N.B. F30 proof file not generated yet; mprime requires AVX-512 to run on exponents this large.
+# N.B. F30 proof file not generated yet; mprime requires AVX-512 to run on exponents this large.
 
 # Fermat numbers F31 and beyond are not supported by gwnum; Mlucas does not yet generate proofs.
 
