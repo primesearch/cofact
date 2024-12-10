@@ -401,6 +401,7 @@ int main (int argc, char **argv) {
     int check_proof_res;            // Flags -c or -cpr to enable checking the mprime proof file A residue
     int debug;                      // Flag -d to enable printing debug information
     int exclude;                    // Flag -e excludes verification of a proof when generating a JSON result
+    int fSB;
     int gerbicz, gec, gsq;          // Flag -g for setting Gerbicz error checking variables
     int rollback, reset;
     int help;                       // Flag -h for printing help
@@ -531,6 +532,7 @@ int main (int argc, char **argv) {
     check_proof_res = 0;    // Default to not checking a proof A residue
     debug = 0;              // Default to no debug
     exclude = 0;            // Default to validating proofs
+    fSB = 0;
     gerbicz = 1000;         // Default interval for Gerbicz error check = 1000
     rollback = 0;
     reset = 0;
@@ -656,9 +658,9 @@ int main (int argc, char **argv) {
             argi++;
             mpz_set_str(B, argv[argi], 10); 
         } else
-        if (strncmp(argv[argi], "-", 1) == 0) {     // Combined -abcdeghijkmopqtuvwxyz flags, processed in alphabetical order
+        if (strncmp(argv[argi], "-", 1) == 0) {     // Combined -abcdefghijkmopqtuvwxyz flags, processed in alphabetical order
             z = 0;
-            flags = strpbrk(argv[argi], "aAbBcCdDeEgGhHiIjJkKmMoOpPqQtTuUvVwWxXyYzZ");      // We are somewhat tolerant of upper case
+            flags = strpbrk(argv[argi], "aAbBcCdDeEfFgGhHiIjJkKmMoOpPqQtTuUvVwWxXyYzZ");      // We are somewhat tolerant of upper case
             if (flags != NULL) {
                 flags = strpbrk(argv[argi], "aA");
                 if (flags != NULL) all_int = 1;
@@ -670,6 +672,8 @@ int main (int argc, char **argv) {
                 if (flags != NULL) debug = 1;
                 flags = strpbrk(argv[argi], "eE");
                 if (flags != NULL) exclude = 1;
+                flags = strpbrk(argv[argi], "fF");
+                if (flags != NULL) fSB = 1;
                 flags = strpbrk(argv[argi], "gG");
                 if (flags != NULL && argi + z + 1 < argc) {
                     mpz_set_str (tmp, argv[argi+1], 10);
@@ -717,7 +721,7 @@ int main (int argc, char **argv) {
                 }
                 flags = strpbrk(argv[argi], "zZ");   // increment z to ensure we advance argument past number
                 if (flags != NULL && argi + z + 1 < argc) { mpz_set_str(B, argv[argi+1], 10); z++; }
-                flags = strpbrk(argv[argi], "fFlLnNrRsS1234567890"); // check if there were other letters or numbers in combined flag
+                flags = strpbrk(argv[argi], "lLnNrRsS1234567890"); // check if there were other letters or numbers in combined flag
                 if (flags != NULL) {
                     printf ("Warning: unknown option in command line flag: %s\n", argv[argi]);
                     usage (0);
@@ -784,22 +788,21 @@ int main (int argc, char **argv) {
         m = 0;      // from here-on to indicate a Mersenne exponent
         printf ("\nRunning Fermat-PRP test on Mersenne M%lu = 2^%lu - 1\n", exp, exp);
     }
+    if (m == 30 || exp > 536870912) fSB = 0;
 
     // If F1, F2, F3, or F4 is selected, check whether Pepin test is unable to run and if so, print a message and exit
     if (m > 0 && m < 5) {
         z = 1 << m;
         z = (1 << z) + 1;
         if (mpz_tdiv_ui (B, z) == 0) {
-            printf ("The P%lspin test using base ", pe);
-            mpz_out_str (stdout, 10, B);
-            printf (" cannot be run on Fermat number F%d = %d\nF%d is prime!\n\n", m, z, m);
+            printf ("The P%lspin test using base %lu cannot be run on Fermat number F%d = %d\nF%d is prime!\n\n", pe, mpz_get_ui (B), m, z, m);
             goto fast_exit;
         }
         z = 0;
     }
     if (exp != 0) {     // If exp is not zero then m is a Mersenne exponent; we make m equal to zero to avoid confusion
         m = 0;
-        if (exp != 3 && exp != 5) { // Try Pomerance, Brillhart, and Wagstaff's strong pseudoprime test: Miller-Rabin for bases 2, 3, 5
+        if (exp != 3 && exp != 5) { // Try Pomerance, Selfridge, and Wagstaff's strong pseudoprime test: Miller-Rabin for bases 2, 3, 5
             x = exp - 1;
             y = 0;
             z = 0;
@@ -980,7 +983,9 @@ int main (int argc, char **argv) {
     if (check_proof_res || use_proof_res) {
         // If both --check and --use flags have been set, warn and default to 'use'
         if (check_proof_res && use_proof_res) {
-            printf ("Error: Can only specify one of -cpr and -upr\n\nAborting P%lspin test and using specified proof for Suyama test\n", pe);
+            printf ("Error: You may only specify one of -cpr and -upr (or --check-proof and --use-proof).\n\n");
+            if (m > 0) printf ("Aborting P%lspin test and using specified proof for Suyama test\n", pe);
+                else printf ("Aborting Fermat-PRP test and using specified proof for Suyama test\n");
             check_proof_res = 0;
         }
         printf ("Reading residue from proof file: %s\n", proof_file_name);
@@ -1311,10 +1316,11 @@ int main (int argc, char **argv) {
         printf (" is not equal to 0\nmodulo the combined product of factors.\n\nPlease resolve which factors you wish to test.\n");
         exit (1);
     }
+    if (fSB && n_fact == 0) fSB = 0;
 
     z = 0;
     // If json indicates we are testing a Mersenne for a cofactor result, or we are checking a proof or trying a primality test, then gwnum must be initialised
-    if (json || !use_proof_res) {
+    if (json || !use_proof_res || fSB) {
         if (threads == 1) symb = ""; else symb = "s";
         printf ("Using %d thread%s in gwnum library\n", threads, symb);
         fflush (stdout);
@@ -1331,13 +1337,18 @@ int main (int argc, char **argv) {
         if (debug) printf ("Calling gwset_safety_margin (gwhandle = %p, safety_margin = %lf)\n", &gwdata, (double) 2.0); 
         gwset_safety_margin (&gwdata, (double) 2.0);            // Had to set this to 3 in pmfs to prevent calc errors with very large N
 
+        GWbase = mpz_get_ui (GMPbase);
+        if (debug) printf ("Calling gwset_maxmulbyconst (gwhandle = %p, max multiplication (base) = %lu)\n", &gwdata, GWbase);
+        gwset_maxmulbyconst (&gwdata, GWbase);
+        
         if (debug) printf ("Calling gwsetup (gwhandle = %p, k = %lf, b = %ld, n = %ld, c = %ld)\n", &gwdata, (double) k, 2L, exp, c); 
         gwerr = gwsetup (&gwdata, (double) k, 2L, exp, c);      // Setup to use modulo F = 2^2^m + 1 or M = 2^exp - 1
                                                                 // Note that K is double, so only values <= 53 bits can be represented. GWNUM checks for this.
         if (gwerr) {
             if (gwerr == 1002) {
                 printf ("gwsetup error = 1002 (Number too large for the FFTs)\n");
-                if (m == 30) printf ("Note that gwnum requires an AVX512 computer to support F30\n");
+                if (m == 30 || exp > 922668300) printf ("Note that gwnum requires an AVX512-equipped computer to support ");
+                if (m == 30) printf ("F30.\n"); else if (exp > 922668300) printf ("the largest Mersennes.\n");
             } else {
                 printf ("gwsetup error = %d\n", gwerr);
             }
@@ -1356,14 +1367,25 @@ int main (int argc, char **argv) {
         }
 
         r_gw = gwalloc (&gwdata);                               // Allocate a GW number for the residue
-        g_gw = gwalloc (&gwdata);
-        h_gw = gwalloc (&gwdata);
-        j_gw = gwalloc (&gwdata);
-        k_gw = gwalloc (&gwdata);
-        if (r_gw == NULL || g_gw == NULL || h_gw == NULL || j_gw == NULL || k_gw == NULL) {
-            printf ("gwalloc of _gw variables failed\n");
+        if (r_gw == NULL) {
+            printf ("gwalloc of r_gw variable failed\n");
             exit (1);
         }
+        if (!use_proof_res) {
+            gwsetmulbyconst (&gwdata, GWbase);
+            g_gw = gwalloc (&gwdata);
+            h_gw = gwalloc (&gwdata);
+            j_gw = gwalloc (&gwdata);
+            k_gw = gwalloc (&gwdata);
+            if (g_gw == NULL || h_gw == NULL || j_gw == NULL || k_gw == NULL) {
+                printf ("gwalloc of _gw variables for Gerbicz error checking failed\n");
+                exit (1);
+            }
+        }
+
+        // Create buffer for transfer of residues from GWNUM to GMP
+        r_bin_buf_len = exp / 64 + 1;
+        r_bin = (unsigned long *) calloc (r_bin_buf_len, sizeof (unsigned long));
     }
 
     // If "use proof residue" enabled, skip the A calculation steps; otherwise perform them
@@ -1378,11 +1400,13 @@ int main (int argc, char **argv) {
         if (debug && !exclude) {printf ("Call to GW proof validation:\n\n"); fflush(stdout);}
         if (json && !exclude) {
             GWbase = mpz_get_ui (GMPbase);
-            binary64togw (&gwdata, &GWbase, 1L, r_gw);
+            u64togw (&gwdata, GWbase, r_gw);
             gw_clear_maxerr (&gwdata);
             i = verify (proof_file_name, verbose || debug, gwdata);
-            gwfree (&gwdata, r_gw);             // Free the GW number: GW docs do not make it clear when this is needed
-            gwdone (&gwdata);                   // Free all GW data
+            if (!fSB) {
+                gwfree (&gwdata, r_gw);             // Free the GW number: GW docs do not make it clear when this is needed
+                gwdone (&gwdata);                   // Free all GW data
+            }
         }
         if (debug && !exclude) printf ("Return from proof validation = %d\n", i);
         if (i > fft_length) fft_length = i;
@@ -1409,18 +1433,15 @@ int main (int argc, char **argv) {
 
         // Initialize r_gw = base for Pepin test = 3
         GWbase = mpz_get_ui (GMPbase);
-        binary64togw (&gwdata, &GWbase, 1L, r_gw);
+        u64togw (&gwdata, GWbase, r_gw);
         gwcopy (&gwdata, r_gw, g_gw);
         gwcopy (&gwdata, r_gw, h_gw);
         gwcopy (&gwdata, r_gw, j_gw);
         gwcopy (&gwdata, r_gw, k_gw);
         gw_clear_maxerr (&gwdata);
 
-        // Create buffer for transfer of residues from GWNUM to GMP
-        r_bin_buf_len = exp / 64 + 1;
-        r_bin = (unsigned long *) calloc (r_bin_buf_len, sizeof (unsigned long));
-
-        x = exp - 1;                                            // Number of Pepin test square/mod steps: x = 2^n - 1
+        // Number of Pepin test square/mod steps: x = 2^n - 1
+        x = exp - 1;
         if (gerbicz == 1000 && exp < 1000000) gerbicz = 100;
         gsq = gerbicz * gerbicz;
 
@@ -1442,19 +1463,14 @@ int main (int argc, char **argv) {
         }
         if (exp > 36) printf ("Interim residues:                       |      Selfridge - Hurwitz residues\nIteration              mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1\n");
 
-        // Almost all the runtime is in the following loop
+        // Almost all the runtime is in the following while loop. The previous for loop is not ideal owing to possible rollback / reset.
         j = 1;
-        while (j <= x) {
-            if (j < 24) {                                   // FIXME Good for n <= 2^24? Could this be set more intelligently?
-                gwsquare2_carefully (&gwdata, r_gw, r_gw);  // r_gw = (r_gw ^ 2) mod F
-            } else {
-//              gwsquare2 (&gwdata, r_gw, r_gw);            // r_gw = (r_gw ^ 2) mod F      Use this line when using gwnum from mprime v29.8
-                gwsquare2 (&gwdata, r_gw, r_gw, 0);         // r_gw = (r_gw ^ 2) mod F      Use this line when using gwnum from mprime v30.8
-                                                            // NOTE, gwnum 30.8 has extra options requiring additional variable set to 0; see gwnum.h (CX Cowie)
-            }                                               // The same issue almost certainly applies to the gwmul3 call below.
+        while (j <= x) {            // First and last two dozen gwnum multiplications use careful settings
+            if (j == 1 || j + 24 > x) gwset_carefully_count (&gwdata, 24);
+            gwsquare2 (&gwdata, r_gw, r_gw, GWMUL_STARTNEXTFFT);    // r_gw = (r_gw ^ 2) mod F
             maxerr = gw_get_maxerr (&gwdata);
             if (maxerr >= 0.45) {
-                printf ("Roundoff warning: k = %ld, m = %d, iteration = %ld, maxerr = %22.20lf\n", k, m, j, maxerr);
+                printf ("Roundoff warning: m = %d, iteration = %ld, maxerr = %22.20lf\n", m, j, maxerr);
                 gw_clear_maxerr (&gwdata);
             }
             if (j % gerbicz == 0) gec = 1; else gec = 0;
@@ -1470,15 +1486,16 @@ int main (int argc, char **argv) {
                     else ms_per_iter = (tv_msecs(tv_progress_stop) - tv_msecs(tv_progress_start)) / (j % j_progress_inc);
                 if (ms_per_iter > 10000) {ms_per_iter = ms_per_iter / 1000; symb = " ";} else symb = "m";
             }
-            k = 0;                                      // k will be used to obtain and print a residue under certain conditions
+            k = 0;                                      // k will now be used to obtain and print a residue under certain conditions
             if (gec > 0) {                              // Gerbicz error check; initially d(0) = u(0) = GWbase; we also save each previous d(t) as h_gw
                 gwcopy (&gwdata, g_gw, h_gw);           // d(t) = u(0)*u(L)*u(2*L)*...*u(t*L) mod N  [1]
                 gwmul3 (&gwdata, g_gw, r_gw, g_gw, 0);  // d(t+1)=d(t)*u((t+1)*L) mod N  [2]    Multiply each previous g_gw by r_gw to obtain the new g_gw;
                 if (gec == 2) {                         // d(t+1)=u(0)*d(t)^(2^L) mod N  [3]    Exponentiate previous d(t) (stored as h_gw) and multiply by u(0) (GWbase).
-                    for (q = 0; q < gerbicz; q++) {
-                        gwsquare2 (&gwdata, h_gw, h_gw, 0);
-                    }
-                    gwsmallmul (&gwdata, GWbase, h_gw);
+                    for (q = 0; q < gerbicz; q++) {     // Last multiplication also includes constant u(0) = GWbase
+                        if (q == 0 || q == gerbicz - 24) gwset_carefully_count (&gwdata, 24);
+                        if (q < gerbicz - 1) gwsquare2 (&gwdata, h_gw, h_gw, GWMUL_STARTNEXTFFT);
+                        else gwmul3 (&gwdata, h_gw, h_gw, h_gw, GWMUL_MULBYCONST);
+                    }                                   // Copy g_gw and h_gw to G and H rather than relying on gwnum for comparison
                     len = gwtobinary64 (&gwdata, g_gw, r_bin, r_bin_buf_len);
                     mpz_import (G, len, -1, 8, 0, 0, r_bin);
                     len = gwtobinary64 (&gwdata, h_gw, r_bin, r_bin_buf_len);
@@ -1496,7 +1513,7 @@ int main (int argc, char **argv) {
                         if (j <= gsq || rollback > 7) {
                             if (rollback > 7) {
                                 printf ("Too many rollbacks at %lu; restarting calculation\n", j);
-                                binary64togw (&gwdata, &GWbase, 1L, r_gw);
+                                u64togw (&gwdata, GWbase, r_gw);
                                 gwcopy (&gwdata, r_gw, g_gw);
                                 gwcopy (&gwdata, r_gw, h_gw);
                                 gwcopy (&gwdata, r_gw, j_gw);
@@ -1544,7 +1561,11 @@ int main (int argc, char **argv) {
             j++;
         }
 
-        // Check for errors
+        // Free GEC variables and check for errors
+        gwfree (&gwdata, g_gw);
+        gwfree (&gwdata, h_gw);
+        gwfree (&gwdata, j_gw);
+        gwfree (&gwdata, k_gw);
         gwerr =  gw_test_for_error (&gwdata);
         if (gwerr) {
             printf ("Error: gw_test_for_error = %d\n", gwerr);
@@ -1586,9 +1607,7 @@ int main (int argc, char **argv) {
                     mpz_tdiv_r (S, B, tmp);             // S = 2^(2^m - 1) (mod p - 1)
                     mpz_powm (B, GMPbase, S, kfac[i]);  // B = b^S (mod p)
                     if (mpz_cmp (A, B) == 0) {
-                        printf ("\nP%d == ", m);
-                        mpz_out_str (stdout, 10, GMPbase);
-                        printf ("^(2^%lu mod ", x);
+                        printf ("\nP%d == %lu^(2^%lu mod ", m, mpz_get_ui (GMPbase), x);
                         mpz_out_str (stdout, 10, tmp);
                         printf (") == ");
                         mpz_out_str (stdout, 10, B);
@@ -1627,8 +1646,10 @@ int main (int argc, char **argv) {
             if (i > fft_length) fft_length = i;
         }
 
-        gwfree (&gwdata, r_gw);                 // Free the GW number: GW docs do not make it clear when this is needed
-        gwdone (&gwdata);                       // Free all GW data
+        if (!fSB) {
+            gwfree (&gwdata, r_gw);             // Free the GW number: GW docs do not make it clear when this is needed
+            gwdone (&gwdata);                   // Free all GW data
+        }
     }
     if (m == 0) { // If we have a Mersenne exponent we also need to perform a modular division by the square of the base
         if (debug) {print_residues (A, binary, SH, " Undivided ");}
@@ -1684,9 +1705,7 @@ int main (int argc, char **argv) {
         mpz_tdiv_r (S, B, tmp);                 // S == 2^2^m (mod p - 1)
         mpz_powm (B, GMPbase, S, kfac[i]);      // B == b^S (mod p), which should == A
         if ((use_proof_res || jacobi != -1 || verbose) && mpz_cmp (P, B) == 0) {
-            printf ("A == ");
-            mpz_out_str (stdout, 10, GMPbase);
-            printf ("^(2^%lu mod ", exp);
+            printf ("A == %lu^(2^%lu mod ", mpz_get_ui (GMPbase), exp);
             mpz_out_str (stdout, 10, tmp);
             printf (") == ");
             mpz_out_str (stdout, 10, B);
@@ -1772,13 +1791,9 @@ int main (int argc, char **argv) {
             } else {
                 if (mpz_cmp_ui (C, 1L) == 0) {
                     printf ("Suyama test is not required, as product of submitted factors = ");
-                    if (m == 0) printf ("M%lu", exp); else printf ("F%d", m);
+                    if (m == 0) printf ("M%lu\n", exp); else printf ("F%d\n", m);
                 }
-                else {
-                    printf ("Cofactor (1 digit): ");
-                    mpz_out_str (stdout, 10, C);
-                }
-                printf ("\n");
+                else printf ("Cofactor (1 digit): %lu\n", mpz_get_ui (C));
             }
         }
     }
@@ -1796,22 +1811,36 @@ int main (int argc, char **argv) {
             fflush (stdout);
         }
 
-        // Calculate B = b^(Q-1) mod F
-//         mpz_sub_ui (tmp, Q, 1L);
-//         mpz_powm (B, GMPbase, tmp, F);
-
         // Alternate (and slightly faster) algorithm to calculate B = b^(Q-1) mod F
         // We read digits of Q from left to right squaring, with an extra multiply if a bit is 1
         // Crandall & Pomerance (2000) call this a binary ladder exponentiation (algorithm 9.3.2)
         j = mpz_sizeinbase (Q, 2L);
         mpz_set (B, GMPbase);
         mpz_set_ui (tmp, 1L); if (debug) printf ("Generating b^(Q-1), Q-1 = "); // use debug and verbose if you are concerned it doesn’t work properly!
-        for (i = j - 1; i > 0; i--) {
-            x = mpz_tstbit (Q, i);
-            if (x == 1 && i > 0 && i < j - 1) {mpz_mul (B, B, GMPbase); mpz_add_ui (tmp, tmp, 1L); }
+        if (fSB) {
             if (debug && verbose) {mpz_out_str (stdout, 10, tmp); printf (" ... "); fflush (stdout);}
-            mpz_mul (B, B, B); mpz_mul_ui (tmp, tmp, 2L);
-            mpz_tdiv_r (B, B, F);
+            u64togw (&gwdata, GWbase, r_gw);
+            gwsetmulbyconst (&gwdata, GWbase);
+            gw_clear_maxerr (&gwdata);
+            for (i = j - 1; i > 0; i--) {
+                x = mpz_tstbit (Q, i - 1);
+                mpz_mul_ui (tmp, tmp, 2L);
+                if (x == 1 && i > 1) {gwmul3 (&gwdata, r_gw, r_gw, r_gw, GWMUL_MULBYCONST); mpz_add_ui (tmp, tmp, 1L);}
+                    else {gwsquare2 (&gwdata, r_gw, r_gw, GWMUL_STARTNEXTFFT);}
+                if (debug && verbose && i > 1) {mpz_out_str (stdout, 10, tmp); printf (" ... ", x); fflush (stdout);}
+            }
+            len = gwtobinary64 (&gwdata, r_gw, r_bin, r_bin_buf_len);
+            mpz_import (B, len, -1, 8, 0, 0, r_bin);
+            gwfree (&gwdata, r_gw);             // Free the GW number: GW docs do not make it clear when this is needed
+            gwdone (&gwdata);                   // Free all GW data
+        } else {
+            for (i = j - 1; i > 0; i--) {
+                x = mpz_tstbit (Q, i);
+                if (x == 1 && i > 0 && i < j - 1) {mpz_mul (B, B, GMPbase); mpz_add_ui (tmp, tmp, 1L); }
+                if (debug && verbose) {mpz_out_str (stdout, 10, tmp); printf (" ... "); fflush (stdout);}
+                mpz_mul (B, B, B); mpz_mul_ui (tmp, tmp, 2L);
+                mpz_tdiv_r (B, B, F);
+            }
         }
         if (debug) {mpz_out_str (stdout, 10, tmp);
         if (mpz_cmp (Q, tmp) == 1 && verbose) symb = " = Q-1"; else symb = ""; printf ("%s\n", symb);}
