@@ -253,6 +253,7 @@ Short option   | Long option          | Function
 -x             |--hex or --hexadecimal| Print Selfridge–Hurwitz residues in hexadecimal as well as decimal.
 -y             |--mersenne            | Specify that the exponent is for a Mersenne number. This command line flag must immediately precede the exponent.
 -z _base_      |--base                | Use a different base for primality testing (the default is 3).
+               |--mersenne-ca-factors | Use this if you have just $k$ values for Mersenne factors, rather than the numeric values of the $2kp+1$ factors themselves. There is no shortcut for this option.
 
 ## Future feature list
 Some nice things to consider adding in the future: proof generation, and giving everyone a unicorn.
