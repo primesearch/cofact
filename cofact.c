@@ -415,6 +415,7 @@ int main (int argc, char **argv) {
     int use_proof_res;              // Flags -u or -upr to enable using the mprime proof file A residue instead of calculating it
     int verbose;                    // Flag to enable printing more information
     int who;                        // Flag -w to add PrimeNet username for JSON string
+    int mersenne_ca_factors;        // Flag to list factors as values of k rather than in 2kp+1 form
     int jacobi;                     // Jacobi (b/F) should equal -1 if we want a definitive result for a Pepin test
     int SH;                         // Print Selfridge - Hurwitz residues if residues are larger than 36 bits
     int prp;                        // Whether a Fermat or Mersenne number is prime
@@ -558,7 +559,8 @@ int main (int argc, char **argv) {
     fft_length = 0;
     proof_power = 0;
     proof_power_mult = 1;   // Initialise these to avoid embarrassment later
-    
+    mersenne_ca_factors = 0;
+
     // Parse command line arguments starting with "-" args
     // The following loop will exit when first non "-" argument is found that is not allowed for,
     // e.g. -c, -cpr, -u, -upr, -p, -q, -t, -w, -y, -z all expect a following argument (filename or string or variable)
@@ -598,7 +600,7 @@ int main (int argc, char **argv) {
             interim = 1;
         } else
         if ((strcmp(argv[argi], "--report-json") == 0) || (strcmp(argv[argi], "--REPORT-JSON") == 0)) {
-            json = 1;
+            json = 1; fSB = 1;
         } else
         if ((strcmp(argv[argi], "--known-factors") == 0) || (strcmp(argv[argi], "--KNOWN-FACTORS") == 0)) {
             known_factors = 1;
@@ -656,7 +658,10 @@ int main (int argc, char **argv) {
         } else
         if ((strcmp(argv[argi], "--base") == 0) || (strcmp(argv[argi], "--BASE") == 0)) {
             argi++;
-            mpz_set_str(B, argv[argi], 10); 
+            mpz_set_str(B, argv[argi], 10);
+        } else
+        if (strcmp(argv[argi], "--mersenne-ca-factors") == 0) {
+            mersenne_ca_factors = 1;
         } else
         if (strncmp(argv[argi], "-", 1) == 0) {     // Combined -abcdefghijkmopqtuvwxyz flags, processed in alphabetical order
             z = 0;
@@ -691,7 +696,7 @@ int main (int argc, char **argv) {
                 flags = strpbrk(argv[argi], "iI");
                 if (flags != NULL) interim = 1;
                 flags = strpbrk(argv[argi], "jJ");
-                if (flags != NULL) json = 1;
+                if (flags != NULL) {json = 1; fSB = 1;}
                 flags = strpbrk(argv[argi], "kK");
                 if (flags != NULL) known_factors = 1;
                 flags = strpbrk(argv[argi], "mM");
@@ -990,7 +995,7 @@ int main (int argc, char **argv) {
         }
         printf ("Reading residue from proof file: %s\n", proof_file_name);
 
-        if ((fp_proof = fopen (proof_file_name, "rb")) == NULL) {               // The "b" is not needed according to fopen man page
+        if ((fp_proof = fopen (proof_file_name, "rb")) == NULL) {   // The "b" is not needed according to fopen man page
             printf ("Error: Cannot open proof file: %s\n", proof_file_name);
             exit (1);
         }
@@ -1046,9 +1051,9 @@ int main (int argc, char **argv) {
                 exp = n_proof;
                 if (debug) printf ("Calculate the Mersenne number M%lu = 2^%lu-1 and M%lu - 1\n", exp, exp, exp); fflush (stdout);
                 mpz_set_ui (F, 1L);
-                mpz_mul_2exp (F, F, exp);       // F   = 2^exp
-                mpz_sub_ui (F, F, 1L);          // F   = 2^exp - 1
-                mpz_sub_ui (Fm1, F, 1L);        // Fm1 = 2^exp - 2
+                mpz_mul_2exp (F, F, exp);   // F   = 2^exp
+                mpz_sub_ui (F, F, 1L);      // F   = 2^exp - 1
+                mpz_sub_ui (Fm1, F, 1L);    // Fm1 = 2^exp - 2
             }
         }
 
@@ -1074,7 +1079,7 @@ int main (int argc, char **argv) {
                 if (flags == NULL) {
                     mpz_set_str (fact[n_fact], factor_s, 10);
                     n_fact++;
-                } else {//          Scan through string for factors separated by /
+                } else {        // Scan through string for factors separated by /
                     factor_p = strdup(factor_s);
                     while ((factor_t = strsep (&factor_p, "/")) != NULL) {
                         if (*factor_t == '\0') {
@@ -1091,7 +1096,7 @@ int main (int argc, char **argv) {
                 printf ("%d factor%s imported from proof description\n", n_fact, symb);
                 
             }
-            known_factors = 0;          // We now have factors loaded into fact[]
+            known_factors = 0;  // We now have factors loaded into fact[]
         }
 
         // Parse the Proof Power from the proof file. Supported formats are "#" and "#x2".
@@ -1154,7 +1159,7 @@ int main (int argc, char **argv) {
     if (mpz_cmp_ui (B, y) == 0) {
         x = 65536;
         for (i = 0; i < 48; i++) {
-            if (x - y == 1 || y - x == 1) l = 2; // l = 2 means we have likely dodgy Fermat-PRP / Pepin
+            if (x - y == 1 || y - x == 1) l = 2;    // l = 2 means we have likely dodgy Fermat-PRP / Pepin
             x = x << 1;
         }
         while ((y & 1) == 0) {y = y >> 1;}
@@ -1178,7 +1183,7 @@ int main (int argc, char **argv) {
         exit (1);
     }
 
-    if (mpz_cmp_ui (fact[0], 1L) == 0) n_fact = 0;      // Initialise the expected number of factors to test after Pepin or Fermat-PRP test
+    if (mpz_cmp_ui (fact[0], 1L) == 0) n_fact = 0;  // Initialise the expected number of factors to test after Pepin or Fermat-PRP test
     for (i = 0; i < k_fact; i++) {kpow[i] = 0;}
     if (known_factors && mpz_cmp_ui (kfac[0], 1L) != 0) {
         n_fact = k_fact;
@@ -1205,11 +1210,16 @@ int main (int argc, char **argv) {
             printf ("Error: cannot parse factor: %s (continuing without it)\n", argv[argi]);
             z++;
         } else {
+            if (mersenne_ca_factors == 1) {         // multiply k by 2p and add 1 to recover factor
+                mpz_mul_ui (fact[i-z], fact[i-z], 2L);
+                mpz_mul_ui (fact[i-z], fact[i-z], exp);
+                mpz_add_ui (fact[i-z], fact[i-z], 1L);
+            }
             if (mpz_cmp_ui (fact[i-z], 1L) <= 0 || mpz_cmp (fact[i-z], F) == 0) {
                 printf ("Error: trivial factor %s omitted (continuing without it)\n", argv[argi]);
                 z++;
             } else {
-                mpz_tdiv_r (tmp, F, fact[i-z]);       // tmp = F mod fact[i]
+                mpz_tdiv_r (tmp, F, fact[i-z]);     // tmp = F mod fact[i]
                 if (mpz_cmp_ui (tmp, 0L) != 0) {
                     printf ("Error: supplied factor %s does not divide ", argv[argi]);
                     if (m == 0) printf ("M%lu", exp); else printf ("F%d", m);
@@ -1226,9 +1236,7 @@ int main (int argc, char **argv) {
             // Check that the supplied factor is not a duplicate
             for (j = 0; j < i; j++) {
                 if (m != 0 && mpz_cmp (fact[i], fact[j]) == 0) {
-                    printf ("Error: supplied factor is a duplicate: ");
-                    mpz_out_str (stdout, 10, fact[i]);
-                    printf ("\nKnown prime factors cannot be exponentiated and still divide the Fermat number.\n");
+                    gmp_printf ("Error: supplied factor is a duplicate: %Zu\nKnown prime factors cannot be exponentiated and still divide the Fermat number.\n", fact[i]);
                     if (known_factors) printf ("Try re-running cofact without the -k flag.\n");
                     exit (1);
                 }
@@ -1236,51 +1244,39 @@ int main (int argc, char **argv) {
             // Check that the supplied factor is a strong probable prime 
             if ((m == 0) && (mpz_tdiv_ui (fact[i], 3L)) == 0) { // Is 3 a factor, or does it divide the factor?
                 if (mpz_cmp_ui (fact[i], 3L) != 0) {
-                    printf ("Supplied factor ");
-                    mpz_out_str (stdout, 10, fact[i]);
-                    printf (" is composite.\n");
+                    gmp_printf ("Supplied factor %Zu is composite.\n", fact[i]);
                     ncomp[i] = 1;
-                } else {
-                    ncomp[i] = 0;
-                }
+                } else ncomp[i] = 0;
             } else {    // If 3 does not divide the factor, then we can run a strong 3-PRP test
                 mpz_sub_ui (tmp, fact[i], 1L);
                 x = mpz_tstbit (tmp, 0);
                 y = 0;
                 while (x == 0) {y++; mpz_tdiv_q_2exp (tmp, tmp, 1L); x = mpz_tstbit (tmp, 0);}
-                mpz_powm (P, GMPbase, tmp, fact[i]);            // we will test if 3^x == 1 (mod fact[i])
+                mpz_powm (P, GMPbase, tmp, fact[i]);        // we will test if 3^x == 1 (mod fact[i])
                 mpz_set (S, P);
                 for (l = 0; l < y; l++) {
                     mpz_add_ui (tmp, S, 1L);
-                    if (mpz_cmp (tmp, fact[i]) == 0) break;     // break if 3^(x.2^l) == -1 (mod fact[i])
+                    if (mpz_cmp (tmp, fact[i]) == 0) break; // break if 3^(x.2^l) == -1 (mod fact[i])
                     mpz_mul (S, S, S);
                     mpz_tdiv_r (S, S, fact[i]);
                 }
-                if ((mpz_cmp_ui (P, 1L) != 0) && (mpz_cmp (tmp, fact[i]) != 0)) { // if neither condition, composite
-                    printf ("Supplied factor ");
-                    mpz_out_str (stdout, 10, fact[i]);
+                if ((mpz_cmp_ui (P, 1L) != 0) && (mpz_cmp (tmp, fact[i]) != 0)) {   // if neither condition, composite
+                    gmp_printf ("Supplied factor %Zu", fact[i]);
                     symb = " = ";
                     mpz_set (P, fact[i]);
                     for (j = 0; j < k_fact; j++) {
                         mpz_tdiv_r (tmp, fact[i], kfac[j]);
                         if (mpz_cmp_ui (tmp, 0L) == 0) {
-                            printf ("%s", symb);
+                            gmp_printf ("%s%Zu", symb, kfac[j]);
                             symb = " * ";
-                            mpz_out_str (stdout, 10, kfac[j]);
                             kpow[j]++;
                             mpz_tdiv_q (P, P, kfac[j]);
                         }
                     }
                     if (mpz_cmp_ui (P, 1) != 0) {
-                        if (k_fact > 0) {
-                            printf (" * ");
-                            mpz_out_str (stdout, 10, P);
-                        }
+                        if (k_fact > 0) gmp_printf (" * %Zu", P);
                         printf (" is composite.\n\n");
-                        if (m != 0) {
-                            mpz_out_str (stdout, 10, P);
-                            printf (" is NOT a known factor!\n\n");
-                        }
+                        if (m != 0) gmp_printf ("%Zu is NOT a known factor!\n\n", P);
                     } else {
                         printf (" is composite.\n");
                     }
@@ -1293,9 +1289,8 @@ int main (int argc, char **argv) {
         }
     }
     for (i = 0; i < k_fact; i++) {
-        if (m != 0 && kpow[i] > 1) { // Fermat factors
-            printf ("Prime factor ");
-            mpz_out_str (stdout, 10, kfac[i]);
+        if (m != 0 && kpow[i] > 1) {    // Fermat factors
+            gmp_printf ("Prime factor %Zu", kfac[i]);
             printf (" appears more than once in the command string, as the factor of a composite factor.\n");
             printf ("Please make sure known prime factors only appear once.\n");
             if (known_factors) printf ("Try re-running cofact without the -k or --known-factors flag, as this includes\nall %d known prime factors.\n", k_fact);
@@ -1304,9 +1299,7 @@ int main (int argc, char **argv) {
     }
     // Calculate Q = product of the known or supplied factors and check that combined, they divide F
     mpz_set (Q, fact[0]);
-    for (i = 1; i < n_fact; i++) {
-        mpz_mul (Q, Q, fact[i]);
-    }
+    for (i = 1; i < n_fact; i++) mpz_mul (Q, Q, fact[i]);
     // Test whether cofactor F = 0 mod Q
     mpz_div (C, F, Q);
     mpz_tdiv_r (tmp, F, Q);
@@ -1390,6 +1383,7 @@ int main (int argc, char **argv) {
 
     // If "use proof residue" enabled, skip the A calculation steps; otherwise perform them
     if (use_proof_res) {
+        if (m > 0) printf ("Skipping the P%lspin test\n", pe);
         printf ("Using A residue from proof file, power %d", proof_power);
         if (proof_power_mult > 1) printf ("x%d", proof_power_mult);
         printf (", instead of calculating it\n");
@@ -1411,10 +1405,9 @@ int main (int argc, char **argv) {
         if (debug && !exclude) printf ("Return from proof validation = %d\n", i);
         if (i > fft_length) fft_length = i;
 
-        if (m != 0) printf ("Skipping the P%lspin test\n\n", pe);
-        if (exp > 36 && debug) {
-                if (m == 0) symb = "Final residue before modular division:  "; else symb = "                                        ";
-                printf ("%s|      Selfridge - Hurwitz residues\n                       mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1\n", symb);
+        if (m == 0 && exp > 36 && debug) {
+            if (m == 0) symb = "Final residue before modular division:  "; else symb = "                                        ";
+            printf ("%s|      Selfridge - Hurwitz residues\n                       mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1\n", symb);
         }
     } else {
         // If not using proof file residue, do the full Pepin and Suyama calculations; first, sanity checks for useable Pepin base
@@ -1476,7 +1469,7 @@ int main (int argc, char **argv) {
             if (j % gerbicz == 0) gec = 1; else gec = 0;
             if (j % gsq == 0 || (gec == 1 && j + gerbicz > x)) gec = 2;
             if (j_progress_inc > 0 && j >= j_progress) j_print = 1; else j_print = 0;
-            if (gec == 2 || j_print == 1) {
+            if (gec > 0 || j_print == 1) {
                 (void) gettimeofday(&tv_progress_stop, (struct timezone *) 0);
                 wall_time = tv_secs(tv_progress_stop) - tv_secs(tv_start);
                 wall_hours = wall_time / 3600;
@@ -1526,8 +1519,8 @@ int main (int argc, char **argv) {
                             if (j % gsq == 0) j -= gsq; else j -= j % gsq;
                         }
                     }
-                    fflush (stdout);
-                }
+                } else printf ("\r%10ld (%5.1f%%)                     |                 Wall time = %4d:%02d:%02d\r", j, 100.0 * j / x, wall_hours, wall_mins, wall_secs);
+                fflush (stdout);
             }
             if (j_print == 1 && gec < 2 && exp > 36) {
                 printf ("%10ld (%5.1f%%), %ss/iter: %9.3lf |                 Wall time = %4d:%02d:%02d (HH:MM:SS)\n", j, 100.0 * j / x, symb, ms_per_iter, wall_hours, wall_mins, wall_secs);
@@ -1542,11 +1535,7 @@ int main (int argc, char **argv) {
                 if (j != x) {
                     if (j_print == 1 || (gec == 2 && (all_int || interim))) printf ("           "); else if (gec != 2) printf ("%10ld ", j);
                     if (all_int || interim) print_residues (P, binary, SH, "Interim");
-                    if ((all_int || interim) && j == x - m - 1 && (super_verbose || (verbose && m > 0 && m < 12))) {
-                        printf ("\n%lu^(2^%lu) == ", mpz_get_ui (GMPbase), j);
-                        mpz_out_str (stdout, 10, P);
-                        printf (" modulo F%d\n\n",m);
-                    }
+                    if ((all_int || interim) && j == x - m - 1 && (super_verbose || (verbose && m > 0 && m < 12))) gmp_printf ("\n%Zu^(2^%lu) == %Zu modulo F%d\n\n", GMPbase, j, P, m);
                     fflush (stdout);
                 }
             }
@@ -1583,11 +1572,7 @@ int main (int argc, char **argv) {
         }
         if (jacobi == -1 || debug || interim || all_int) { // if jacobi is not -1, we do *not* have a valid Pepin test base (but we may still be able to do a Suyama test)
             if (m == 0 || jacobi != -1) print_residues (P, binary, SH, "Penultimate"); else print_residues (P, binary, m, "Pepin");
-            if (super_verbose || (verbose && m > 0 && m < 12)) {
-                printf ("\nP%d == ", m);
-                mpz_out_str (stdout, 10, P);
-                printf (" modulo F%d\n", m);
-            }
+            if (super_verbose || (verbose && m > 0 && m < 12)) gmp_printf ("\nP%d == %Zu modulo F%d\n", m, P, m);
             fflush (stdout);
         }
 
@@ -1606,14 +1591,8 @@ int main (int argc, char **argv) {
                     mpz_sub (tmp, kfac[i], S);          // tmp = p - 1
                     mpz_tdiv_r (S, B, tmp);             // S = 2^(2^m - 1) (mod p - 1)
                     mpz_powm (B, GMPbase, S, kfac[i]);  // B = b^S (mod p)
-                    if (mpz_cmp (A, B) == 0) {
-                        printf ("\nP%d == %lu^(2^%lu mod ", m, mpz_get_ui (GMPbase), x);
-                        mpz_out_str (stdout, 10, tmp);
-                        printf (") == ");
-                        mpz_out_str (stdout, 10, B);
-                        printf (" mod ");
-                        mpz_out_str (stdout, 10, kfac[i]);
-                    } else {printf ("\nP%lspin residue has been calculated incorrectly!\n\n", pe); exit (1);}
+                    if (mpz_cmp (A, B) == 0) gmp_printf ("\nP%d == %Zu^(2^%lu mod %Zu) == %Zu mod %Zu", m, GMPbase, x, tmp, B, kfac[i]);
+                    else {printf ("\nP%lspin residue has been calculated incorrectly!\n\n", pe); exit (1);}
                 }
                 printf ("\nP%lspin residue passes check.\n", pe);
             }
@@ -1680,7 +1659,7 @@ int main (int argc, char **argv) {
         mpz_tdiv_r (A, A, F);
         if (debug) {print_residues (A, binary, SH, "  Divided  ");}
     }
-    if (verbose) {
+    if (verbose && !use_proof_res) {
         if (len < 5) { // print full residues if they are 4 or less words in size
             printf ("Suyama A residue: ");
             for (i = len; i > 0; i--) {
@@ -1690,29 +1669,21 @@ int main (int argc, char **argv) {
         } else  printf ("Suyama A residue: length = %d words, %016lx %016lx ... %016lx %016lx\n", len, r_bin[len-1], r_bin[len-2], r_bin[1], r_bin[0]);
     }
     if (super_verbose || (verbose && exp < 2049)) {
-        printf ("\nSuyama A == ");
-        mpz_out_str (stdout, 10, A);
-        if (m > 0) printf (" modulo F%d\n\n", m); else printf (" modulo M%lu\n\n", exp);
+        gmp_printf ("\nSuyama A == %Zu modulo ", A);
+        if (m > 0) printf ("F%d\n\n", m); else printf ("M%lu\n\n", exp);
     }
 
     if (k_fact > 0 && use_proof_res) printf ("Gerbicz check of proof residue:\n");  // Gerbicz sanity check, if there are known factors
     if ((k_fact > 0 && jacobi != -1) || (m == 0 && n_fact > 0 && n_comp != 1)) printf ("Gerbicz check of Fermat-PRP residue:\n");
-    for (i = 0; i < k_fact; i++) {              // note, A == b^2^2^m mod F_m = b^(F_m - 1) mod F_m
-        mpz_tdiv_r (P, A, kfac[i]);             // P == A (mod p), where p is a prime factor of F_m
+    for (i = 0; i < k_fact; i++) {          // note, A == b^2^2^m mod F_m = b^(F_m - 1) mod F_m
+        mpz_tdiv_r (P, A, kfac[i]);         // P == A (mod p), where p is a prime factor of F_m
         mpz_set_ui (S, 1L);
-        mpz_mul_2exp (B, S, exp);               // B = 2^2^m
-        mpz_sub (tmp, kfac[i], S);              // tmp = p - 1
-        mpz_tdiv_r (S, B, tmp);                 // S == 2^2^m (mod p - 1)
-        mpz_powm (B, GMPbase, S, kfac[i]);      // B == b^S (mod p), which should == A
-        if ((use_proof_res || jacobi != -1 || verbose) && mpz_cmp (P, B) == 0) {
-            printf ("A == %lu^(2^%lu mod ", mpz_get_ui (GMPbase), exp);
-            mpz_out_str (stdout, 10, tmp);
-            printf (") == ");
-            mpz_out_str (stdout, 10, B);
-            printf (" mod ");
-            mpz_out_str (stdout, 10, kfac[i]);
-            printf ("\n");
-        } else if (mpz_cmp (P, B) != 0) {
+        mpz_mul_2exp (B, S, exp);           // B = 2^2^m
+        mpz_sub (tmp, kfac[i], S);          // tmp = p - 1
+        mpz_tdiv_r (S, B, tmp);             // S == 2^2^m (mod p - 1)
+        mpz_powm (B, GMPbase, S, kfac[i]);  // B == b^S (mod p), which should == A
+        if ((use_proof_res || jacobi != -1 || verbose) && mpz_cmp (P, B) == 0) gmp_printf ("A == %Zu^(2^%lu mod %Zu) == %Zu mod %Zu\n", GMPbase, exp, tmp, B, kfac[i]);
+        else if (mpz_cmp (P, B) != 0) {
             if (use_proof_res) symb = " with proof"; else symb = "";
             printf ("Problem%s: Suyama A residue has been calculated incorrectly!\n\n", symb);
             exit (1);
@@ -1720,25 +1691,18 @@ int main (int argc, char **argv) {
     }
     if (debug) printf ("n_comp = %d\n", n_comp);
 //             if (debug) printf ("ncomp[%d] = %d\n", i, ncomp[i]); // from loop below
-    if (m == 0 && n_comp == 0) {                // For Mersennes we only have supplied factors (which may not be
-        for (i = 0; i < n_fact; i++) {          // prime), and we need to modify the exponent (mod factor - 1)
-            if (ncomp[i] == 0) {                // owing to the modular division step, by subtracting 2.
-                mpz_tdiv_r (P, A, fact[i]);     // Note, Gerbicz's trick only works on prime factors.
-                mpz_set_ui (S, 1L);             // P == A (mod p)
-                mpz_mul_2exp (B, S, exp);       // B =  2^exp
-                mpz_sub_ui (B, B, 2L);          // B = 2^exp - 2
-                mpz_sub (tmp, fact[i], S);      // tmp = p - 1
-                mpz_tdiv_r (S, B, tmp);         // S == 2^exp - 2 (mod p - 1)
-                mpz_powm (B, GMPbase, S, fact[i]); // B == b^S (mod p), which should == A
-                if (mpz_cmp (P, B) == 0) {
-                    printf ("A == %lu^(2^%lu-2 mod ", mpz_get_ui (GMPbase), exp);
-                    mpz_out_str (stdout, 10, tmp);
-                    printf (") == ");
-                    mpz_out_str (stdout, 10, B);
-                    printf (" mod ");
-                    mpz_out_str (stdout, 10, fact[i]);
-                    printf ("\n");
-                } else {
+    if (m == 0 && n_comp == 0) {            // For Mersennes we only have supplied factors (which may not be
+        for (i = 0; i < n_fact; i++) {      // prime), and we need to modify the exponent (mod factor - 1)
+            if (ncomp[i] == 0) {            // owing to the modular division step, by subtracting 2.
+                mpz_tdiv_r (P, A, fact[i]); // Note, Gerbicz's trick only works on prime factors.
+                mpz_set_ui (S, 1L);         // P == A (mod p)
+                mpz_mul_2exp (B, S, exp);   // B =  2^exp
+                mpz_sub_ui (B, B, 2L);      // B = 2^exp - 2
+                mpz_sub (tmp, fact[i], S);  // tmp = p - 1
+                mpz_tdiv_r (S, B, tmp);     // S == 2^exp - 2 (mod p - 1)
+                mpz_powm (B, GMPbase, S, fact[i]);  // B == b^S (mod p), which should == A
+                if (mpz_cmp (P, B) == 0) gmp_printf ("A == %Zu^(2^%lu-2 mod %Zu) == %Zu mod %Zu\n", GMPbase, exp, tmp, B, fact[i]);
+                else {
                     if (use_proof_res) symb = " with proof"; else symb = "";
                     printf ("Problem%s: Suyama A residue may have been calculated incorrectly!\n\n", symb);
                     mpz_tdiv_r (tmp, F, GMPbase);
@@ -1766,10 +1730,7 @@ int main (int argc, char **argv) {
         if (known_factors) {symb = "known";} else {symb = "supplied";}
         printf ("cofactor for primality using the following %d %s factor", n_fact, symb);
         if (n_fact > 1) printf ("s: "); else printf (": ");
-        for (i = 0; i < n_fact; i++) {
-            mpz_out_str (stdout, 10, fact[i]);
-            printf (" ");
-        }
+        for (i = 0; i < n_fact; i++) gmp_printf ("%Zu ", fact[i]);
         printf ("\n");
 
         digits = num_digits (C);
@@ -1779,8 +1740,7 @@ int main (int argc, char **argv) {
         }
 
         if ((super_verbose || (m > 0 && m < 12) || (m == 0 && exp < 4096)) && digits > 1) {
-            printf ("Cofactor (%d digits): ", digits);
-            mpz_out_str (stdout, 10, C);
+            gmp_printf ("Cofactor (%d digits): %Zu", digits, C);
             if ((binary & 2) == 2) print_mpz (C, 2, "\nBinary representation");
             printf ("\n");
         } else {
@@ -1791,7 +1751,7 @@ int main (int argc, char **argv) {
                     printf ("Suyama test is not required, as product of submitted factors = ");
                     if (m == 0) printf ("M%lu\n", exp); else printf ("F%d\n", m);
                 }
-                else printf ("Cofactor (1 digit): %lu\n", mpz_get_ui (C));
+                else gmp_printf ("Cofactor (1 digit): %Zu\n", C);
             }
         }
     }
@@ -1804,7 +1764,7 @@ int main (int argc, char **argv) {
     // Back into cofactor processing if cofactor is non-trivial
     if (n_fact > 0 && mpz_cmp_ui (C, 1L) != 0) {
         if (modc) {
-            mpz_mod (tmp, A, C);              // A mod C
+            mpz_mod (tmp, A, C);            // A mod C
             print_residues (tmp, binary, SH, "    A mod C");
             fflush (stdout);
         }
@@ -1813,7 +1773,7 @@ int main (int argc, char **argv) {
         // We read digits of Q from left to right squaring, with an extra multiply if a bit is 1
         // Crandall & Pomerance (2000) call this a binary ladder exponentiation (algorithm 9.3.2)
         j = mpz_sizeinbase (Q, 2L);
-        mpz_set (B, GMPbase);
+        if (debug && verbose) printf ("Q is %lu bits in size, calculating B = b^(Q-1) requires %lu iterations. ", j, j-1);
         mpz_set_ui (tmp, 1L); if (debug) printf ("Generating b^(Q-1), Q-1 = "); // use debug and verbose if you are concerned it doesn’t work properly!
         if (fSB) {
             if (debug && verbose) {mpz_out_str (stdout, 10, tmp); printf (" ... "); fflush (stdout);}
@@ -1827,32 +1787,60 @@ int main (int argc, char **argv) {
                 if (x == 1 && i > 1) {gwmul3 (&gwdata, r_gw, r_gw, r_gw, GWMUL_MULBYCONST); mpz_add_ui (tmp, tmp, 1L);}
                 else if (i > 1) gwsquare2 (&gwdata, r_gw, r_gw, GWMUL_STARTNEXTFFT);
                 else gwsquare2 (&gwdata, r_gw, r_gw, 0);
-                if (debug && verbose && i > 1) {mpz_out_str (stdout, 10, tmp); printf (" ... "); fflush (stdout);}
+                if (debug && verbose && i > 1) gmp_printf ("%Zu ... ", tmp);
+                else {
+                    q = mpz_sizeinbase (tmp, 10L);
+                    if (q < 60) gmp_printf ("\rCalculating %Zu^%Zu", GMPbase, tmp);
+                    else {
+                        printf ("\r                                                                                               \r");
+                        mpz_set_ui (G, 10L);
+                        for (l = 1; l < q - 15; l++) mpz_mul_ui (G, G, 10L);
+                        mpz_tdiv_q (G, tmp, G);
+                        gmp_printf ("\rCalculating %Zu^(%Zu ... %015lu)", GMPbase, G, mpz_tdiv_ui (tmp, 1000000000000000L));
+                    }
+                }
                 maxerr = gw_get_maxerr (&gwdata);
                 if (maxerr >= 0.45) {
-                    printf ("Roundoff warning: Q bit = %ld, maxerr = %22.20lf\n", i, maxerr);
+                    printf ("Roundoff warning: Q bit = %d/%ld, maxerr = %22.20lf\n", i - 1, j, maxerr);
                     gw_clear_maxerr (&gwdata);
                 }
+                fflush (stdout);
             }
             len = gwtobinary64 (&gwdata, r_gw, r_bin, r_bin_buf_len);
             mpz_import (B, len, -1, 8, 0, 0, r_bin);
             gwfree (&gwdata, r_gw);             // Free the GW number: GW docs do not make it clear when this is needed
             gwdone (&gwdata);                   // Free all GW data
         } else {
+            mpz_set (B, GMPbase);
             for (i = j - 1; i > 0; i--) {
                 x = mpz_tstbit (Q, i);
                 if (x == 1 && i > 0 && i < j - 1) {mpz_mul (B, B, GMPbase); mpz_add_ui (tmp, tmp, 1L); }
-                if (debug && verbose) {mpz_out_str (stdout, 10, tmp); printf (" ... "); fflush (stdout);}
+                if (debug && verbose) gmp_printf ("%Zu ... ", tmp);
+                else {
+                    q = mpz_sizeinbase (tmp, 10L);
+                    if (q < 60) gmp_printf ("\rCalculating %Zu^%Zu", GMPbase, tmp);
+                    else {
+                        printf ("\r                                                                                               \r");
+                        mpz_set_ui (G, 10L);
+                        for (l = 1; l < q - 15; l++) mpz_mul_ui (G, G, 10L);
+                        mpz_tdiv_q (G, tmp, G);
+                        gmp_printf ("\rCalculating %Zu^(%Zu ... %015lu)", GMPbase, G, mpz_tdiv_ui (tmp, 1000000000000000L));
+                    }
+                }
+                fflush (stdout);
                 mpz_mul (B, B, B); mpz_mul_ui (tmp, tmp, 2L);
                 mpz_tdiv_r (B, B, F);
             }
         }
-        if (debug) {mpz_out_str (stdout, 10, tmp);
-        if (mpz_cmp (Q, tmp) == 1 && verbose) symb = " = Q-1"; else symb = ""; printf ("%s\n", symb);}
+        if (!debug || !verbose) {printf ("\r                                                                                               \r");}
+        if (debug) {
+            if (mpz_cmp (Q, tmp) == 1 && verbose) symb = " = Q-1"; else symb = "";
+            gmp_printf ("%Zu%s\n", tmp, symb);
+        }
         print_residues (B, binary, SH, "Suyama    B");
         fflush (stdout);
         if (modc) {
-            mpz_mod (tmp, B, C);              // B mod C
+            mpz_mod (tmp, B, C);            // B mod C
             print_residues (tmp, binary, SH, "    B mod C");
             fflush (stdout);
         }
@@ -1914,26 +1902,22 @@ fast_exit:
         printf ("Manual results JSON string appended to results.json.txt:\n");
         sprintf (line, "{\"status\":\"%s\", \"exponent\":%lu, \"worktype\":\"PRP-%d\", \"res64\":\"%016lX\", \"residue-type\":", symb, exp, i, j);
         if (n_fact > 0) symb = "5"; else symb = "1";
-        sprintf (strchr(line, '\0'), "%s, \"res2048\":\"", symb);
-        printf ("%s", line); fprintf (fptr, "%s", line);
-        mpz_out_str (stdout, 16, tmp); mpz_out_str (fptr, 16, tmp);
-        printf ("\", \"fft-length\":%d", fft_length); fprintf (fptr, "\", \"fft-length\":%d", fft_length);
+        gmp_sprintf (strchr(line, '\0'), "%s, \"res2048\":\"%Z0512X\", \"fft-length\":%d", symb, tmp, fft_length);
+        printf ("%s", line); fprintf (fptr, "%s", line);    // line probably exceeds 512 characters, so time to fprint
         time_block = gmtime(&current_time);
         strftime(time_string, TIME_STRING_LEN, "%Y-%m-%d %X", time_block);
         if (exclude && use_proof_res) symb = "1"; else symb = "0"; // error code 00000001 indicates a proof was not validated to obtain this result
         sprintf (line, "\", \"shift-count\":0, \"error-code\":\"0000000%s\", \"program\":{\"name\":\"%s\", \"version\":\"%s\", \"port\":%d}, \"timestamp\":\"%s\"", symb, prog_name, prog_vers, PORT, time_string);
-        printf ("%s", line); fprintf (fptr, "%s", line);
         if (n_fact > 0) {
-            printf (", \"known-factors\":["); fprintf (fptr, ", \"known-factors\":[");
+            sprintf (strchr(line, '\0'), ", \"known-factors\":[");
             for (i = 0; i < n_fact; i++) {
                 symb = "\"";
-                printf ("%s", symb); fprintf (fptr, "%s", symb);
-                mpz_out_str (stdout, 10, fact[i]); mpz_out_str (fptr, 10, fact[i]);
-                if (i+1 < n_fact) symb = "\", ";
-                printf ("%s", symb); fprintf (fptr, "%s", symb);
+                gmp_sprintf (strchr(line, '\0'), "%s%Zu%s", symb, fact[i], symb);
+                if (i+1 < n_fact) symb = ", "; else symb = "]";
+                sprintf (strchr(line, '\0'), "%s", symb);
             }
-            printf ("]"); fprintf (fptr, "]");
         }
+        printf ("%s", line); fprintf (fptr, "%s", line);    // again line may be lengthy owing to many factors, so time to fprint again
         if (!use_proof_res) {
             sprintf (line, ", \"errors\":{\"gerbicz\":%d}", (reset << 3) + rollback);
             printf ("%s", line); fprintf (fptr, "%s", line);
