@@ -1519,7 +1519,7 @@ int main (int argc, char **argv) {
                             if (j % gsq == 0) j -= gsq; else j -= j % gsq;
                         }
                     }
-                } else printf ("\r%10ld (%5.1f%%)                     |                 Wall time = %4d:%02d:%02d\r", j, 100.0 * j / x, wall_hours, wall_mins, wall_secs);
+                } else if (!sep) printf ("\r%10ld (%5.1f%%)                     |                 Wall time = %4d:%02d:%02d\r", j, 100.0 * j / x, wall_hours, wall_mins, wall_secs);
                 fflush (stdout);
             }
             if (j_print == 1 && gec < 2 && exp > 36) {
@@ -1787,8 +1787,8 @@ int main (int argc, char **argv) {
                 if (x == 1 && i > 1) {gwmul3 (&gwdata, r_gw, r_gw, r_gw, GWMUL_MULBYCONST); mpz_add_ui (tmp, tmp, 1L);}
                 else if (i > 1) gwsquare2 (&gwdata, r_gw, r_gw, GWMUL_STARTNEXTFFT);
                 else gwsquare2 (&gwdata, r_gw, r_gw, 0);
-                if (debug && verbose && i > 1) gmp_printf ("%Zu ... ", tmp);
-                else {
+                if (!sep && debug && verbose && i > 1) gmp_printf ("%Zu ... ", tmp);
+                else if (!sep) {
                     q = mpz_sizeinbase (tmp, 10L);
                     if (q < 60) gmp_printf ("\rCalculating %Zu^%Zu", GMPbase, tmp);
                     else {
@@ -1815,8 +1815,8 @@ int main (int argc, char **argv) {
             for (i = j - 1; i > 0; i--) {
                 x = mpz_tstbit (Q, i);
                 if (x == 1 && i > 0 && i < j - 1) {mpz_mul (B, B, GMPbase); mpz_add_ui (tmp, tmp, 1L); }
-                if (debug && verbose) gmp_printf ("%Zu ... ", tmp);
-                else {
+                if (!sep && debug && verbose) gmp_printf ("%Zu ... ", tmp);
+                else if (!sep) {
                     q = mpz_sizeinbase (tmp, 10L);
                     if (q < 60) gmp_printf ("\rCalculating %Zu^%Zu", GMPbase, tmp);
                     else {
