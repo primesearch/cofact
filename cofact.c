@@ -26,7 +26,7 @@
  * Values: F is the Fermat number, 2^2^m + 1 = Q x C, Q is the product of known prime factors, 
  * C is the remaining cofactor. The exponent m produces huge untestable Fermats beyond m = 30.
  *
- * Mersenne numbers of similar magnitude (2^p - 1, where p is an odd prime below 2^30) are also
+ * Mersenne numbers of similar magnitude (2^p - 1, where p is an odd prime below 1.169 billion) are also 
  * supported.
  *
  * Prints Res64 (hexadecimal) and Selfridge-Hurwitz residues (decimal, optionally octal and hex) 
@@ -401,9 +401,9 @@ int main (int argc, char **argv) {
     int check_proof_res;            // Flags -c or -cpr to enable checking the mprime proof file A residue
     int debug;                      // Flag -d to enable printing debug information
     int exclude;                    // Flag -e excludes verification of a proof when generating a JSON result
-    int fSB;
+    int fSB;                        // Flag -f for calculating Suyama B using gwnum
     int gerbicz, gec, gsq;          // Flag -g for setting Gerbicz error checking variables
-    int rollback, reset;
+    int rollback, reset;            // rollback counts errors, up to a point where a reset from beginning is required
     int help;                       // Flag -h for printing help
     int interim;                    // Flag -i to print select interim residues
     int json;                       // Flag -j to print a JSON
@@ -653,8 +653,8 @@ int main (int argc, char **argv) {
         if ((strcmp(argv[argi], "--mersenne") == 0) || (strcmp(argv[argi], "--MERSENNE") == 0)) {
             mpz_set_str (tmp, argv[argi+1], 10);
             exp = mpz_get_ui (tmp);
-            if (exp < 3) {printf ("Smallest Mersenne exponent must exceed 2.\n\n"); exit (1);}
-            if (mpz_cmp_ui (tmp, exp) != 0 || exp > 1168999969) {printf ("Mersenne exponent must not exceed 1,168,999,969.\n\n"); exit (1);}
+            if (exp < 2) {printf ("Error: Mersenne exponent must exceed 1.\n\n"); exit (1);}
+            if (mpz_cmp_ui (tmp, exp) != 0 || exp > 1168999969) {printf ("Error: Mersenne exponent must not exceed 1,168,999,969.\n\n"); exit (1);}
         } else
         if ((strcmp(argv[argi], "--base") == 0) || (strcmp(argv[argi], "--BASE") == 0)) {
             argi++;
@@ -721,8 +721,8 @@ int main (int argc, char **argv) {
                 if (flags != NULL && argi + z + 1 < argc) {
                     mpz_set_str (tmp, argv[argi+1], 10);
                     exp = mpz_get_ui (tmp);
-                    if (exp < 3) {printf ("Smallest Mersenne exponent must exceed 2.\n\n"); exit (1);}
-                    if (mpz_cmp_ui (tmp, exp) != 0 || exp > 1168999969) {printf ("Mersenne exponent must not exceed 1,168,999,969.\n\n"); exit (1);}
+                    if (exp < 2) {printf ("Error: Mersenne exponent must exceed 1.\n\n"); exit (1);}
+                    if (mpz_cmp_ui (tmp, exp) != 0 || exp > 1168999969) {printf ("Error: Mersenne exponent must not exceed 1,168,999,969.\n\n"); exit (1);}
                 }
                 flags = strpbrk(argv[argi], "zZ");   // increment z to ensure we advance argument past number
                 if (flags != NULL && argi + z + 1 < argc) { mpz_set_str(B, argv[argi+1], 10); z++; }
@@ -807,7 +807,7 @@ int main (int argc, char **argv) {
     }
     if (exp != 0) {     // If exp is not zero then m is a Mersenne exponent; we make m equal to zero to avoid confusion
         m = 0;
-        if (exp != 3 && exp != 5) { // Try Pomerance, Selfridge, and Wagstaff's strong pseudoprime test: Miller-Rabin for bases 2, 3, 5
+        if (exp != 2 && exp != 3 && exp != 5) { // Try Pomerance, Selfridge, and Wagstaff's strong pseudoprime test: Miller-Rabin for bases 2, 3, 5
             x = exp - 1;
             y = 0;
             z = 0;
@@ -1774,7 +1774,8 @@ int main (int argc, char **argv) {
         // Crandall & Pomerance (2000) call this a binary ladder exponentiation (algorithm 9.3.2)
         j = mpz_sizeinbase (Q, 2L);
         if (debug && verbose) printf ("Q is %lu bits in size, calculating B = b^(Q-1) requires %lu iterations. ", j, j-1);
-        mpz_set_ui (tmp, 1L); if (debug) printf ("Generating b^(Q-1), Q-1 = "); // use debug and verbose if you are concerned it doesn’t work properly!
+        mpz_set_ui (tmp, 1L);
+        if (debug) printf ("Generating b^(Q-1), Q-1 = "); // use debug and verbose if you are concerned it doesn’t work properly!
         if (fSB) {
             if (debug && verbose) {mpz_out_str (stdout, 10, tmp); printf (" ... "); fflush (stdout);}
             u64togw (&gwdata, GWbase, r_gw);
@@ -1784,9 +1785,11 @@ int main (int argc, char **argv) {
             for (i = j - 1; i > 0; i--) {
                 x = mpz_tstbit (Q, i - 1);
                 mpz_mul_ui (tmp, tmp, 2L);
-                if (x == 1 && i > 1) {gwmul3 (&gwdata, r_gw, r_gw, r_gw, GWMUL_MULBYCONST); mpz_add_ui (tmp, tmp, 1L);}
-                else if (i > 1) gwsquare2 (&gwdata, r_gw, r_gw, GWMUL_STARTNEXTFFT);
-                else gwsquare2 (&gwdata, r_gw, r_gw, 0);
+                if (x == 1 && i > 1) {
+                    gwmul3 (&gwdata, r_gw, r_gw, r_gw, GWMUL_MULBYCONST);
+                    mpz_add_ui (tmp, tmp, 1L);
+                } else if (i > 1) gwsquare2 (&gwdata, r_gw, r_gw, GWMUL_STARTNEXTFFT);
+                    else gwsquare2 (&gwdata, r_gw, r_gw, 0);
                 if (!sep && debug && verbose && i > 1) gmp_printf ("%Zu ... ", tmp);
                 else if (!sep) {
                     q = mpz_sizeinbase (tmp, 10L);
@@ -1796,7 +1799,7 @@ int main (int argc, char **argv) {
                         mpz_set_ui (G, 10L);
                         for (l = 1; l < q - 15; l++) mpz_mul_ui (G, G, 10L);
                         mpz_tdiv_q (G, tmp, G);
-                        gmp_printf ("\rCalculating %Zu^(%Zu ... %015lu)", GMPbase, G, mpz_tdiv_ui (tmp, 1000000000000000L));
+                        gmp_printf ("\rCalculating %Zu^(%Zu...%015lu)", GMPbase, G, mpz_tdiv_ui (tmp, 1000000000000000L));
                     }
                 }
                 maxerr = gw_get_maxerr (&gwdata);
@@ -1814,7 +1817,10 @@ int main (int argc, char **argv) {
             mpz_set (B, GMPbase);
             for (i = j - 1; i > 0; i--) {
                 x = mpz_tstbit (Q, i);
-                if (x == 1 && i > 0 && i < j - 1) {mpz_mul (B, B, GMPbase); mpz_add_ui (tmp, tmp, 1L); }
+                if (x == 1 && i > 0 && i < j - 1) {
+                    mpz_mul (B, B, GMPbase);
+                    mpz_add_ui (tmp, tmp, 1L);
+                }
                 if (!sep && debug && verbose) gmp_printf ("%Zu ... ", tmp);
                 else if (!sep) {
                     q = mpz_sizeinbase (tmp, 10L);
@@ -1824,11 +1830,12 @@ int main (int argc, char **argv) {
                         mpz_set_ui (G, 10L);
                         for (l = 1; l < q - 15; l++) mpz_mul_ui (G, G, 10L);
                         mpz_tdiv_q (G, tmp, G);
-                        gmp_printf ("\rCalculating %Zu^(%Zu ... %015lu)", GMPbase, G, mpz_tdiv_ui (tmp, 1000000000000000L));
+                        gmp_printf ("\rCalculating %Zu^(%Zu...%015lu)", GMPbase, G, mpz_tdiv_ui (tmp, 1000000000000000L));
                     }
                 }
                 fflush (stdout);
-                mpz_mul (B, B, B); mpz_mul_ui (tmp, tmp, 2L);
+                mpz_mul (B, B, B);
+                mpz_mul_ui (tmp, tmp, 2L);
                 mpz_tdiv_r (B, B, F);
             }
         }
@@ -1893,21 +1900,20 @@ fast_exit:
 
     if (json) {
         if (mpz_cmp_ui (Q, 0L) == 0 || (mpz_cmp_ui (A, 1L) == 0 && n_fact == 0)) symb = "P"; else symb = "C";
-        i = mpz_get_ui (GMPbase);
         mpz_and (r64, A, mask64);
-        j = mpz_get_ui (r64);
         mpz_tdiv_r_2exp (tmp, A, 2048L);
         FILE *fptr;
         fptr = fopen ("results.json.txt", "a");
-        printf ("Manual results JSON string appended to results.json.txt:\n");
-        sprintf (line, "{\"status\":\"%s\", \"exponent\":%lu, \"worktype\":\"PRP-%d\", \"res64\":\"%016lX\", \"residue-type\":", symb, exp, i, j);
+        if (verbose) printf ("Manual results JSON string appended to results.json.txt:\n");
+        gmp_sprintf (line, "{\"status\":\"%s\", \"exponent\":%lu, \"worktype\":\"PRP-%Zu\", \"res64\":\"%Z016X\"", symb, exp, GMPbase, r64);
         if (n_fact > 0) symb = "5"; else symb = "1";
-        gmp_sprintf (strchr(line, '\0'), "%s, \"res2048\":\"%Z0512X\", \"fft-length\":%d", symb, tmp, fft_length);
-        printf ("%s", line); fprintf (fptr, "%s", line);    // line probably exceeds 512 characters, so time to fprint
+        gmp_sprintf (strchr(line, '\0'), ", \"residue-type\":%s, \"res2048\":\"%Z0512X\", \"fft-length\":%d, \"shift-count\":0", symb, tmp, fft_length);
+        if (verbose) printf ("%s", line);
+        fprintf (fptr, "%s", line); // line exceeds 512 characters, so a good time to fprint
         time_block = gmtime(&current_time);
         strftime(time_string, TIME_STRING_LEN, "%Y-%m-%d %X", time_block);
-        if (exclude && use_proof_res) symb = "1"; else symb = "0"; // error code 00000001 indicates a proof was not validated to obtain this result
-        sprintf (line, "\", \"shift-count\":0, \"error-code\":\"0000000%s\", \"program\":{\"name\":\"%s\", \"version\":\"%s\", \"port\":%d}, \"timestamp\":\"%s\"", symb, prog_name, prog_vers, PORT, time_string);
+        if (exclude && use_proof_res) symb = "1"; else symb = "0"; // error code 00000001 indicates a proof was not validated to obtain this result (mode 3 only)
+        sprintf (line, ", \"error-code\":\"0000000%s\", \"program\":{\"name\":\"%s\", \"version\":\"%s\", \"port\":%d}, \"timestamp\":\"%s\"", symb, prog_name, prog_vers, PORT, time_string);
         if (n_fact > 0) {
             sprintf (strchr(line, '\0'), ", \"known-factors\":[");
             for (i = 0; i < n_fact; i++) {
@@ -1917,15 +1923,18 @@ fast_exit:
                 sprintf (strchr(line, '\0'), "%s", symb);
             }
         }
-        printf ("%s", line); fprintf (fptr, "%s", line);    // again line may be lengthy owing to many factors, so time to fprint again
+        if (verbose) printf ("%s", line);
+        fprintf (fptr, "%s", line); // again line may be lengthy owing to many factors, so time to fprint again
         if (!use_proof_res) {
             sprintf (line, ", \"errors\":{\"gerbicz\":%d}", (reset << 3) + rollback);
-            printf ("%s", line); fprintf (fptr, "%s", line);
+            if (verbose) printf ("%s", line);
+            fprintf (fptr, "%s", line);
         }
         if (who > 0) sprintf (line, ", \"user\":\"%s\"", argv[who]); else sprintf (line, ", \"user\":\"ANONYMOUS\"");
         if (computer > 0) sprintf (strchr(line, '\0'), ", \"computer\":\"%s\"", argv[computer]);
         sprintf (strchr(line, '\0'), "}\n");
-        printf ("%s\n", line); fprintf (fptr, "%s", line);
+        if (verbose) printf ("%s", line);
+        fprintf (fptr, "%s", line);
         fclose (fptr);
     }
 
