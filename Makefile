@@ -12,15 +12,16 @@
 #	git clone --branch cxc https://github.com/primesearch/cofact.git
 #
 # From there, start with:
-#	make -f [makemac|make64|makemw64|...]
-# to compile gwnum.a for your 64bit [Mac|Linux|Win|...] system.
+#	make -f [makemac|make64|makemw64|makebsd64]
+# to compile gwnum.a for your 64 bit [Mac|Linux|Win|FreeBSD] system.
 #
 # Once that is done, you may proceed to:
 #	cd cofact; bash cmake.sh ../..
 #
 # The shell script creates symbolic links to the gwnum files above, then runs make on this Makefile.
 #
-# Later than version v30.8 of the Prime95 source is desirable, to avoid also requiring gwnum.ld
+# Later than version v30.8 of the Prime95 source is desirable, to avoid also requiring gwnum.ld, 
+# which compiles: gcc cofact.o gwnum.a gwnum.ld -lm -lgmp -ldl -lpthread -lstdc++ -o cofact
 #
 # If you have any suggestions or issues please raise these at:
 #	https://github.com/primesearch/cofact/issues/
