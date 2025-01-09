@@ -6,7 +6,7 @@
  * Authors: Gary B. Gostin
  *          Catherine X. Cowie (1catherine dot cowie at gmail dot com)
  *
- * Copyrights: this program is (C) 2023-2024 Gostin and Cowie under the GPL version 3 licence.
+ * Copyrights: this program is (C) 2023-2025 Gostin and Cowie under the GPL version 3 licence.
  *
  *             the gwnum library and proof validation module are (C) 2002-24 Mersenne Research, Inc. All rights reserved.
  *
@@ -94,17 +94,11 @@
 #ifdef __linux__
 #define PORT	8
 #endif
-#ifdef __FreeBSD__
-#define PORT	12
-#endif
-#if defined (__EMX__) || defined (__IBMC__) || defined (__OS2__)
-#define PORT	7
-#endif
 #ifdef __APPLE__
 #define PORT	10
 #endif
-#ifdef __HAIKU__
-#define PORT	11
+#ifdef __FreeBSD__
+#define PORT	12
 #endif
 
 #define CMD_LEN 2048        // Length of the command line string supports factors of 
@@ -387,23 +381,24 @@ int main (int argc, char **argv) {
     unsigned long GWbase;           // Base for manipulations in gwnum, usually but not always equal to GMPbase
     unsigned long exp;              // The Fermat exponent 2^m, or the Mersenne exponent p
     unsigned long x;                // Number of Pepin test square/mod operations
+    unsigned long inverse_square;   // Result of GMP modular inverse
     unsigned long j;                // Iteration counter for square/mod loop
     unsigned long j_progress;       // The next j at which to print progress
     unsigned long j_progress_inc;   // The j increment at which to report progress
-    unsigned long j_print;          // Flag for when the j increment has been reached
+    int j_print;                    // Flag for when the j increment has been reached
     unsigned long k;                // Always 1 for a Fermat number
-    long c;                         // Always 1 for a Fermat number, -1 for a Mersenne number
+    int c;                          // Always 1 for a Fermat number, -1 for a Mersenne number
     int threads;                    // Number of threads (cores) to use in gwnum library
-    int fft_length;                 // report gwnum fft-length for JSON string
-    int digits;                     // Number of digits in the cofactor
+    unsigned long fft_length;       // report gwnum fft-length for JSON string
+    unsigned long digits;           // Number of digits in the cofactor
     int all_int;                    // Flag -a to print all interim residues
     int binary;                     // Flags -b, -o, -x to additionally print Selfridge - Hurwitz residues in binary, octal, hexadecimal
     int check_proof_res;            // Flags -c or -cpr to enable checking the mprime proof file A residue
     int debug;                      // Flag -d to enable printing debug information
     int exclude;                    // Flag -e excludes verification of a proof when generating a JSON result
     int fSB;                        // Flag -f for calculating Suyama B using gwnum
-    int gerbicz, gec, gsq;          // Flag -g for setting Gerbicz error checking variables
-    int rollback, reset;            // rollback counts errors, up to a point where a reset from beginning is required
+    int gec, rollback, reset;       // Flag -g for setting Gerbicz error checking variables
+    unsigned long gerbicz, gsq;     // rollback counts errors, up to a point where a reset from beginning is required
     int help;                       // Flag -h for printing help
     int interim;                    // Flag -i to print select interim residues
     int json;                       // Flag -j to print a JSON
@@ -421,7 +416,7 @@ int main (int argc, char **argv) {
     int prp;                        // Whether a Fermat or Mersenne number is prime
     long fseek_rtn;                 // Return value from fseek
     long ftell_rtn_0, ftell_rtn_1;  // Return value from ftell before and after fseek call
-    int res_len;                    // The size of the proof file residue, in bytes
+    long res_len;                   // The size of the proof file residue, in bytes
     char cmdline[CMD_LEN];          // The reconstructed command line
     char line[2048];                // Temp string
     unsigned long y;
@@ -452,8 +447,8 @@ int main (int argc, char **argv) {
     double maxerr;                  // The maximum roundoff error returned by gw_get_maxerr
 
     size_t r_bin_buf_len;           // Number of longs in r_bin buffer
-    unsigned long *r_bin;           // Binary array for tranfer of residue from GWNUM to GMP
-    int len;                        // Temp
+    unsigned long long *r_bin;      // Binary array for tranfer of residue from GWNUM to GMP
+    long len;                       // Temp
 
     mpz_t kfac[K_FACT];             // The known factors of the Fermat number
     mpz_t fact[N_FACT];             // The supplied factors of the Fermat number (or Mersenne number)
@@ -551,6 +546,7 @@ int main (int argc, char **argv) {
     who = 0;
     exp = 0;                // Default to no Suyama testing of a Mersenne
     m = 0;                  // Invalid value for Fermat numbers, to make sure m is later set
+    inverse_square = 0;     // Will be set to non-zero value if a modular inverse exists
     z = 0;                  // Flag for combined menu options requiring an additional parameter (-c, -p, -q, -u, -w, -z)
     digits = 0;             // Also an invalid value
     prp = 0;                // Switch to 1 if or when we print a statement of primality
@@ -1334,7 +1330,7 @@ int main (int argc, char **argv) {
         if (debug) printf ("Calling gwset_maxmulbyconst (gwhandle = %p, max multiplication (base) = %lu)\n", &gwdata, GWbase);
         gwset_maxmulbyconst (&gwdata, GWbase);
         
-        if (debug) printf ("Calling gwsetup (gwhandle = %p, k = %lf, b = %ld, n = %ld, c = %ld)\n", &gwdata, (double) k, 2L, exp, c); 
+        if (debug) printf ("Calling gwsetup (gwhandle = %p, k = %lf, b = %ld, n = %ld, c = %d)\n", &gwdata, (double) k, 2L, exp, c); 
         gwerr = gwsetup (&gwdata, (double) k, 2L, exp, c);      // Setup to use modulo F = 2^2^m + 1 or M = 2^exp - 1
                                                                 // Note that K is double, so only values <= 53 bits can be represented. GWNUM checks for this.
         if (gwerr) {
@@ -1354,7 +1350,7 @@ int main (int argc, char **argv) {
         if (verbose) {
             gwfft_description (&gwdata, line);
             printf ("fft_description: %s\n", line);
-            printf ("fftlen = %d\n", fft_length);
+            printf ("fftlen = %lu\n", fft_length);
             printf ("near_fft_limit = %d\n", gwnear_fft_limit (&gwdata, (double)3.0));
             printf ("\n");
         }
@@ -1378,7 +1374,7 @@ int main (int argc, char **argv) {
 
         // Create buffer for transfer of residues from GWNUM to GMP
         r_bin_buf_len = exp / 64 + 1;
-        r_bin = (unsigned long *) calloc (r_bin_buf_len, sizeof (unsigned long));
+        r_bin = (unsigned long long *) calloc (r_bin_buf_len, sizeof (unsigned long long));
     }
 
     // If "use proof residue" enabled, skip the A calculation steps; otherwise perform them
@@ -1405,10 +1401,13 @@ int main (int argc, char **argv) {
         if (debug && !exclude) printf ("Return from proof validation = %d\n", i);
         if (i > fft_length) fft_length = i;
 
-        if (m == 0 && exp > 36 && debug) {
-            if (m == 0) symb = "Final residue before modular division:  "; else symb = "                                        ";
-            printf ("%s|      Selfridge - Hurwitz residues\n                       mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1\n", symb);
+        symb = "                                        ";
+        if (m == 0) {
+            mpz_mul (P, GMPbase, GMPbase);
+            inverse_square = mpz_invert (tmp, P, F);
+            if (exp > 36 && debug) symb = "Final residue before modular division:  ";
         }
+        if (exp > 36 && debug) printf ("%s|      Selfridge - Hurwitz residues\n                       mod 2^64 (hex)   |   mod 2^36    mod 2^36-1   mod 2^35-1\n", symb);
     } else {
         // If not using proof file residue, do the full Pepin and Suyama calculations; first, sanity checks for useable Pepin base
 
@@ -1458,6 +1457,10 @@ int main (int argc, char **argv) {
 
         // Almost all the runtime is in the following while loop. The previous for loop is not ideal owing to possible rollback / reset.
         j = 1;
+        if (m == 0) {
+            mpz_mul (P, GMPbase, GMPbase);
+            inverse_square = mpz_invert (tmp, P, F);
+        }
         while (j <= x) {            // First and last two dozen gwnum multiplications use careful settings
             if (j == 1 || j + 24 > x) gwset_carefully_count (&gwdata, 24);
             gwsquare2 (&gwdata, r_gw, r_gw, GWMUL_STARTNEXTFFT);    // r_gw = (r_gw ^ 2) mod F
@@ -1563,14 +1566,12 @@ int main (int argc, char **argv) {
 
         if (m > 0 && verbose) {
             if (len < 5) { // print full residues if they are 4 or less words in size
-                printf ("P%lspin P%d residue: ", pe, m);
-                for (i = len; i > 0; i--) {
-                    printf ("%016lx ", r_bin[i-1]);
-                }
+                printf ("P%lspin P%d residue:", pe, m);
+                for (i = len; i > 0; i--) printf (" %016llx", r_bin[i-1]);
                 printf ("\n");
-            } else  printf ("P%lspin P%d residue: length = %d words, %016lx %016lx ... %016lx %016lx\n", pe, m, len, r_bin[len-1], r_bin[len-2], r_bin[1], r_bin[0]);
+            } else  printf ("P%lspin P%d residue: length = %d words, %016llx %016llx ... %016llx %016llx\n", pe, m, len, r_bin[len-1], r_bin[len-2], r_bin[1], r_bin[0]);
         }
-        if (jacobi == -1 || debug || interim || all_int) { // if jacobi is not -1, we do *not* have a valid Pepin test base (but we may still be able to do a Suyama test)
+        if (jacobi == -1 || debug || interim || all_int) {  // if jacobi is not -1, we do *not* have a valid Pepin test base (but we may still be able to do a Suyama test)
             if (m == 0 || jacobi != -1) print_residues (P, binary, SH, "Penultimate"); else print_residues (P, binary, m, "Pepin");
             if (super_verbose || (verbose && m > 0 && m < 12)) gmp_printf ("\nP%d == %Zu modulo F%d\n", m, P, m);
             fflush (stdout);
@@ -1603,9 +1604,7 @@ int main (int argc, char **argv) {
         }
 
         // Square/mod one more time to get A. This is the mprime proof file residue.
-//      gwsquare2 (&gwdata, r_gw, r_gw);        // r_gw = (r_gw ^ 2) mod F      Use this line when using gwnum from mprime v29.8
-        gwsquare2 (&gwdata, r_gw, r_gw, 0);     // r_gw = (r_gw ^ 2) mod F      Use this line when using gwnum from mprime v30.8 or later
-                                                // NOTE, gwnum 30.8's gwsquare2 has extra options requiring additional variable set to 0; see gwnum.h (CX Cowie)
+        gwsquare2 (&gwdata, r_gw, r_gw, 0); // r_gw = (r_gw ^ 2) mod F
         len = gwtobinary64 (&gwdata, r_gw, r_bin, r_bin_buf_len);
         mpz_import (A, len, -1, 8, 0, 0, r_bin);
 
@@ -1631,10 +1630,9 @@ int main (int argc, char **argv) {
         }
     }
     if (m == 0) { // If we have a Mersenne exponent we also need to perform a modular division by the square of the base
-        if (debug) {print_residues (A, binary, SH, " Undivided ");}
-        mpz_mul (S, GMPbase, GMPbase);
-        x = mpz_invert (tmp, S, F);
-        if (x == 0) {
+        if (debug) {print_residues (A, binary, SH, "   A.b^2   ");}
+        if (inverse_square == 0) {
+            mpz_mul (S, GMPbase, GMPbase);
             printf ("Error: no modular inverse for square of base\n");  // Hopefully we never need to use this code
             mpz_tdiv_r (tmp, A, S);                                     // if you ever see this error, and exp is prime,
             if (mpz_cmp_ui (tmp, 0L) == 0) {                            // please let CXC know
@@ -1657,16 +1655,14 @@ int main (int argc, char **argv) {
         }
         mpz_mul (A, A, tmp);
         mpz_tdiv_r (A, A, F);
-        if (debug) {print_residues (A, binary, SH, "  Divided  ");}
+        if (debug) {print_residues (A, binary, SH, "  Mod div  ");}
     }
     if (verbose && !use_proof_res) {
         if (len < 5) { // print full residues if they are 4 or less words in size
-            printf ("Suyama A residue: ");
-            for (i = len; i > 0; i--) {
-                printf ("%016lx ", r_bin[i-1]);
-            }
+            printf ("Suyama A residue:");
+            for (i = len; i > 0; i--) printf (" %016llx", r_bin[i-1]);
             printf ("\n");
-        } else  printf ("Suyama A residue: length = %d words, %016lx %016lx ... %016lx %016lx\n", len, r_bin[len-1], r_bin[len-2], r_bin[1], r_bin[0]);
+        } else  printf ("Suyama A residue: length = %d words, %016llx %016llx ... %016llx %016llx\n", len, r_bin[len-1], r_bin[len-2], r_bin[1], r_bin[0]);
     }
     if (super_verbose || (verbose && exp < 2049)) {
         gmp_printf ("\nSuyama A == %Zu modulo ", A);
@@ -1745,7 +1741,7 @@ int main (int argc, char **argv) {
             printf ("\n");
         } else {
             if (digits > 1) {
-                printf ("Cofactor is %d digits long\n", digits);
+                printf ("Cofactor is %lu digits long\n", digits);
             } else {
                 if (mpz_cmp_ui (C, 1L) == 0) {
                     printf ("Suyama test is not required, as product of submitted factors = ");
@@ -1904,15 +1900,14 @@ fast_exit:
         mpz_tdiv_r_2exp (tmp, A, 2048L);
         FILE *fptr;
         fptr = fopen ("results.json.txt", "a");
-        if (verbose) printf ("Manual results JSON string appended to results.json.txt:\n");
         gmp_sprintf (line, "{\"status\":\"%s\", \"exponent\":%lu, \"worktype\":\"PRP-%Zu\", \"res64\":\"%Z016X\"", symb, exp, GMPbase, r64);
         if (n_fact > 0) symb = "5"; else symb = "1";
         gmp_sprintf (strchr(line, '\0'), ", \"residue-type\":%s, \"res2048\":\"%Z0512X\", \"fft-length\":%d, \"shift-count\":0", symb, tmp, fft_length);
-        if (verbose) printf ("%s", line);
         fprintf (fptr, "%s", line); // line exceeds 512 characters, so a good time to fprint
+        if (verbose) printf ("Manual results JSON string appended to results.json.txt:\n%s", line);
+        if (exclude && use_proof_res) symb = "1"; else symb = "0";  // error code 00000001 indicates a proof was not validated to obtain this result (mode 3 only)
         time_block = gmtime(&current_time);
         strftime(time_string, TIME_STRING_LEN, "%Y-%m-%d %X", time_block);
-        if (exclude && use_proof_res) symb = "1"; else symb = "0"; // error code 00000001 indicates a proof was not validated to obtain this result (mode 3 only)
         sprintf (line, ", \"error-code\":\"0000000%s\", \"program\":{\"name\":\"%s\", \"version\":\"%s\", \"port\":%d}, \"timestamp\":\"%s\"", symb, prog_name, prog_vers, PORT, time_string);
         if (n_fact > 0) {
             sprintf (strchr(line, '\0'), ", \"known-factors\":[");
@@ -1923,18 +1918,14 @@ fast_exit:
                 sprintf (strchr(line, '\0'), "%s", symb);
             }
         }
-        if (verbose) printf ("%s", line);
+        if (!use_proof_res) sprintf (strchr(line, '\0'), ", \"errors\":{\"gerbicz\":%d}", (reset << 3) + rollback);
         fprintf (fptr, "%s", line); // again line may be lengthy owing to many factors, so time to fprint again
-        if (!use_proof_res) {
-            sprintf (line, ", \"errors\":{\"gerbicz\":%d}", (reset << 3) + rollback);
-            if (verbose) printf ("%s", line);
-            fprintf (fptr, "%s", line);
-        }
+        if (verbose) printf ("%s", line);
         if (who > 0) sprintf (line, ", \"user\":\"%s\"", argv[who]); else sprintf (line, ", \"user\":\"ANONYMOUS\"");
         if (computer > 0) sprintf (strchr(line, '\0'), ", \"computer\":\"%s\"", argv[computer]);
         sprintf (strchr(line, '\0'), "}\n");
         if (verbose) printf ("%s", line);
-        fprintf (fptr, "%s", line);
+        fprintf (fptr, "%s", line); // finish outputting json and close file
         fclose (fptr);
     }
 
