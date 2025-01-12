@@ -9,12 +9,8 @@
 # 
 # make -f make64            (Linux 64bit)
 # make -f makebsd64         (FreeBSD 12.3 64bit)
-# make -f makefile          (Linux, FreeBSD 32bit)
-# make -f haiku             (Haiku 32bit)
 # make -f makemac           (macOS)
-# make -f makemsys          (Mingw/Msys)
 # make -f makemw64          (Mingw/MSys 64bit)
-# make -f makeos2           (OS/2 32bit)
 #
 # After making cofact, install to your binary directory e.g., sudo cp cofact /usr/local/bin
 #

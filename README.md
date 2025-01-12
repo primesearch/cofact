@@ -18,9 +18,9 @@ for comparison with the residues reported by other programs.
 ## Installation
 You should either unzip the `cofact` download as a directory  within the Prime95 source library 
 directory `gwnum`, or run `git clone` in that directory, as `cofact` uses a number of files from 
-the Prime95 source. First, run the `gwnum` makefile for your platform, e.g. for \[macOS|Linux|Win\]:
+the Prime95 source. First, run the `gwnum` makefile for your platform, e.g. for \[macOS|Linux|Win|FreeBSD\]:
 ```bash
-cd p95v3019b21/gwnum; make -f [makemac|make64|makemw64]
+cd p95v3019b21/gwnum; make -f [makemac|make64|makemw64|makebsd64]
 ```
 Then for `cofact`:
 ```bash
@@ -93,12 +93,12 @@ Using `git` you may switch between the two versions, prior to the build instruct
 cd cofact; git switch [main|cxc]
 ```
 ## Copyright
-This program is copyright © 2023–2024 Gostin and Cowie under the GPL v3 licence.
+This program is copyright © 2023–2025 Gostin and Cowie under the GPL v3 licence.
 
-The `gwnum` library, and the proof validation module are copyright © 2002–2024 Mersenne Research, Inc, used 
+The `gwnum` library, and the proof validation module are copyright © 2002–2025 Mersenne Research, Inc, used 
 with permission. All rights reserved.
 
-The GMP library is copyright © 1991, 1993–2016, 2018–2024 Free Software Foundation, Inc.
+The GMP library is copyright © 1991, 1993–2016, 2018–2025 Free Software Foundation, Inc.
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU 
 General Public License as published by the Free Software Foundation, either version 3 of the License, or 
@@ -150,15 +150,15 @@ conceivable equivalent test on Mersenne exponents similarly allows complete repl
 `Mlucas` cofactor results using `mprime` and `cofact`, and _vice versa_.
 
 ## Mathematics
-The Fermat numbers have the form $2^{2^m}+1$, $m \ge 0$, and the Mersenne numbers have the form 
-$2^p - 1$, where $p$ is a prime number. The five smallest Fermat numbers are prime, and of the 
-first ten million prime numbers, 52 prime exponents $p$ are currently known to give rise to a 
+The Fermat numbers $F_m$ have the form $2^{2^m}+1$, $m \ge 0$, and the Mersenne numbers $M_p$ have 
+the form $2^p - 1$, where $p$ is a prime number. The five smallest Fermat numbers are prime, and of 
+the first eight million prime numbers, 52 prime exponents $p$ are currently known to give rise to a 
 Mersenne prime. This utility can run a primality or probable primality test on any of these 
 numbers in such a way that the test allows further testing of the cofactor, if the Fermat or 
 Mersenne number is composite and has one or more known factors.
 
 The practical computational limit for this sort of testing is reached around $F_{30}$ for Fermat 
-numbers, and $M_{1,073,741,789}$ for Mersenne numbers.
+numbers, and $M_{1,168,999,969}$ for Mersenne numbers.
 
 If $F$ is a Fermat number, we are interested in obtaining the result $P$ of a Pépin test, where 
 $P = b^{\frac 1 2 (F - 1)} \equiv -1$ (mod $F$) if and only if $F$ is prime. Since 
@@ -177,9 +177,9 @@ Suyama in 1984 and subsequently refined by Hendrik W. Lenstra, Jr.
 
 ### Suyama cofactor test
 Suyama’s method also utilises Fermat’s little theorem to test the cofactor. If a Fermat number $F$ 
-or Mersenne number $M$ is composite and equal to $Q \times C$, where $Q$ is the product of known 
+or Mersenne number $M_p$ is composite and equal to $Q \times C$, where $Q$ is the product of known 
 factors and $C$ is the cofactor, then having calculated either $A = b^{F-1}$ (mod $F$) or 
-$A = b^{2^{p}-2}$ (mod $M$), we also calculate $B = b^{Q-1}$ modulo $F$ or $M$ 
+$A = b^{2^{p}-2}$ (mod $M_p$), we also calculate $B = b^{Q-1}$ modulo $F$ or $M_p$ 
 respectively; this then allows a comparison by simple subtraction, modulo the cofactor. If 
 $A - B \equiv 0$ (mod $C$)
 then the cofactor is probably prime to the base $b^Q$; otherwise it is composite. Taking the 
@@ -207,7 +207,7 @@ numbers that have yet to be fully factored (or factored at all), from $F_{12}$ u
 available for download from the co-author’s [website](https://64ordle.au/fermat/). 
 If you wish to use `mprime` to generate a proof for $F_{30}$, we would be 
 [most interested](https://www.mersenneforum.org/node/17112/page3)
-in knowing about it (however it is not a task for the faint-hearted).
+in knowing about it (however this is not a task for the faint-hearted).
 
 If you believe you have a newly-discovered factor to test, it is *strongly recommended* you 
 do not use the `-k` option, but obtain the list of all known factors and add your new factor 
@@ -236,6 +236,7 @@ Short option   | Long option          | Function
 -c _filename_  |--check-proof         | Check a VDF proof by computing the Fermat-PRP/Suyama $A$ residue for direct comparison. (This will be impractically lengthy for large exponents; most often you will want to use `-u` or `--use-proof` below.)
 -d             |--debug               | Print debug information.
 -e             |--do-not-verify       | Exclude a proof from being validated when printing reports for Mersenne cofactor tests. (Large proofs may take several hours to verify.)
+-f             |                      | Use `gwnum` to calculate the Suyama $B$ residue. There is no long flag for this option.
 -g _iterations_|--Gerbicz             | Change the interval between error checking; the default is 1 million iterations with a 0.1% overhead. The minimum value allowed is 10,000 iterations, which will be selected if fewer than 1 million iterations are required. If another value is chosen using `-g`, then `cofact` will select the closest square number equal to or greater than the number of _iterations_ chosen.
 -h             |--help                | Print basic help (`-hv` and `-h -sv` are increasingly verbose).
 -i             |--interim-residues    | Print interim residues at various points (also see `-p` below).
@@ -253,6 +254,7 @@ Short option   | Long option          | Function
 -x             |--hex or --hexadecimal| Print Selfridge–Hurwitz residues in hexadecimal as well as decimal.
 -y             |--mersenne            | Specify that the exponent is for a Mersenne number. This command line flag must immediately precede the exponent.
 -z _base_      |--base                | Use a different base for primality testing (the default is 3).
+--mersenne-ca-factors|--mersenne-ca-factors| Use this if you have just $k$ values for Mersenne factors, rather than the numeric values of the $2kp+1$ factors themselves. There is no shortcut for this option.
 
 ## Future feature list
 Some nice things to consider adding in the future: proof generation, and giving everyone a unicorn.
